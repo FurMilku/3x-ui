@@ -123,14 +123,6 @@
                 <a-textarea v-model="allSetting.subRoutingRules" placeholder="happ://routing/add/..."></a-textarea>
             </template>
         </a-setting-list-item>
-        <a-setting-list-item paddings="small">
-            <template #title>Clash Rules Template</template>
-            <template #description>用于 Clash/Mihomo 订阅的 `rules`。支持占位符 `${PROXY_GROUP}`（主组名）。</template>
-            <template #control>
-                <a-textarea v-model="allSetting.subClashRules"
-                    placeholder="DOMAIN,injections.adguard.org,DIRECT&#10;MATCH,${PROXY_GROUP}"></a-textarea>
-            </template>
-        </a-setting-list-item>
     </a-collapse-panel>
     <a-collapse-panel key="3" header='{{ i18n "pages.settings.certs" }}'>
         <a-setting-list-item paddings="small">

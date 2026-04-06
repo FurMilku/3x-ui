@@ -70,19 +70,6 @@ var defaultValueMap = map[string]string{
 	"subShowInfo":                 "true",
 	"subURI":                      "",
 	"subClashURI":                 "",
-	"subClashRules":               `DOMAIN,injections.adguard.org,DIRECT
-DOMAIN,local.adguard.org,DIRECT
-DOMAIN-SUFFIX,local,DIRECT
-IP-CIDR,127.0.0.0/8,DIRECT
-IP-CIDR,10.0.0.0/8,DIRECT
-IP-CIDR,172.16.0.0/12,DIRECT
-IP-CIDR,192.168.0.0/16,DIRECT
-IP-CIDR,100.64.0.0/10,DIRECT
-IP-CIDR,224.0.0.0/4,DIRECT
-IP-CIDR6,fe80::/10,DIRECT
-DOMAIN-SUFFIX,cn,DIRECT
-GEOIP,CN,DIRECT
-MATCH,${PROXY_GROUP}`,
 	"subJsonPath":                 "/json/",
 	"subJsonURI":                  "",
 	"subJsonFragment":             "",
@@ -567,10 +554,6 @@ func (s *SettingService) GetSubURI() (string, error) {
 
 func (s *SettingService) GetSubClashURI() (string, error) {
 	return s.getString("subClashURI")
-}
-
-func (s *SettingService) GetSubClashRules() (string, error) {
-	return s.getString("subClashRules")
 }
 
 func (s *SettingService) GetSubJsonURI() (string, error) {

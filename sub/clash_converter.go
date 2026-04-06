@@ -19,10 +19,11 @@ func newClashConverter() *clashConverter {
 	return &clashConverter{}
 }
 
-func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, subTitle string, rulesTemplate string) (string, error) {
+func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, subTitle string) (string, error) {
 	_ = traffic
 	proxies := make([]map[string]any, 0, len(links))
 	proxyNames := make([]string, 0, len(links))
+	nameCount := map[string]int{}
 	for _, raw := range links {
 		link := strings.TrimSpace(raw)
 		if link == "" {
@@ -36,8 +37,9 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 		name, _ := p["name"].(string)
 		if name == "" {
 			name = fmt.Sprintf("node-%d", len(proxies)+1)
-			p["name"] = name
 		}
+		name = c.uniqueName(name, nameCount)
+		p["name"] = name
 
 		proxies = append(proxies, p)
 		proxyNames = append(proxyNames, name)
@@ -91,8 +93,22 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 			"nameserver":         []string{"https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"},
 		},
 		"proxies":             proxies,
-		"proxy-groups":        groups,
-		"rules": c.resolveRulesTemplate(rulesTemplate, groupName),
+		"proxy-groups": groups,
+		"rules": []string{
+			"DOMAIN,injections.adguard.org,DIRECT",
+			"DOMAIN,local.adguard.org,DIRECT",
+			"DOMAIN-SUFFIX,local,DIRECT",
+			"IP-CIDR,127.0.0.0/8,DIRECT",
+			"IP-CIDR,10.0.0.0/8,DIRECT",
+			"IP-CIDR,172.16.0.0/12,DIRECT",
+			"IP-CIDR,192.168.0.0/16,DIRECT",
+			"IP-CIDR,100.64.0.0/10,DIRECT",
+			"IP-CIDR,224.0.0.0/4,DIRECT",
+			"IP-CIDR6,fe80::/10,DIRECT",
+			"DOMAIN-SUFFIX,cn,DIRECT",
+			"GEOIP,CN,DIRECT",
+			"MATCH," + groupName,
+		},
 	}
 
 	out, err := yaml.Marshal(cfg)
@@ -100,72 +116,6 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 		return "", err
 	}
 	return string(out), nil
-}
-
-func (c *clashConverter) resolveRulesTemplate(template string, groupName string) []string {
-	defaultRules := []string{
-		"DOMAIN,injections.adguard.org,DIRECT",
-		"DOMAIN,local.adguard.org,DIRECT",
-		"DOMAIN-SUFFIX,local,DIRECT",
-		"IP-CIDR,127.0.0.0/8,DIRECT",
-		"IP-CIDR,10.0.0.0/8,DIRECT",
-		"IP-CIDR,172.16.0.0/12,DIRECT",
-		"IP-CIDR,192.168.0.0/16,DIRECT",
-		"IP-CIDR,100.64.0.0/10,DIRECT",
-		"IP-CIDR,224.0.0.0/4,DIRECT",
-		"IP-CIDR6,fe80::/10,DIRECT",
-		"DOMAIN-SUFFIX,cn,DIRECT",
-		"GEOIP,CN,DIRECT",
-		"MATCH," + groupName,
-	}
-
-	tpl := strings.TrimSpace(template)
-	if tpl == "" {
-		return defaultRules
-	}
-
-	// Simple placeholder substitution. Users can provide multiline rules.
-	// Supported placeholders:
-	// - ${PROXY_GROUP} / ${GROUP} / {{PROXY_GROUP}}
-	tpl = strings.ReplaceAll(tpl, "${PROXY_GROUP}", groupName)
-	tpl = strings.ReplaceAll(tpl, "${GROUP}", groupName)
-	tpl = strings.ReplaceAll(tpl, "{{PROXY_GROUP}}", groupName)
-	tpl = strings.ReplaceAll(tpl, "{{GROUP}}", groupName)
-
-	tpl = strings.ReplaceAll(tpl, "\r\n", "\n")
-
-	lines := strings.Split(tpl, "\n")
-	out := make([]string, 0, len(lines)+1)
-	hasMatch := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(strings.ToLower(line), "rules:") {
-			continue
-		}
-		// allow yaml-style bullet "- xxx"
-		if strings.HasPrefix(line, "-") {
-			line = strings.TrimSpace(strings.TrimPrefix(line, "-"))
-		}
-		// allow wrapped quotes
-		line = strings.TrimSpace(strings.TrimPrefix(line, "'"))
-		line = strings.TrimSpace(strings.TrimSuffix(line, "'"))
-		line = strings.TrimSpace(strings.TrimPrefix(line, "\""))
-		line = strings.TrimSpace(strings.TrimSuffix(line, "\""))
-
-		if strings.HasPrefix(line, "MATCH,") {
-			hasMatch = true
-		}
-		out = append(out, line)
-	}
-
-	if !hasMatch {
-		out = append(out, "MATCH,"+groupName)
-	}
-	return out
 }
 
 func (c *clashConverter) parseProxy(link string) (map[string]any, error) {
@@ -277,13 +227,37 @@ func (c *clashConverter) parseVLess(link string) (map[string]any, error) {
 	if sec := q.Get("security"); sec == "tls" || sec == "reality" {
 		proxy["tls"] = true
 	}
+	if insecure := strings.TrimSpace(q.Get("allowInsecure")); insecure == "1" || strings.EqualFold(insecure, "true") {
+		proxy["skip-cert-verify"] = true
+	}
 	if sni := q.Get("sni"); sni != "" {
 		proxy["servername"] = sni
+	}
+	if alpn := strings.TrimSpace(q.Get("alpn")); alpn != "" {
+		proxy["alpn"] = splitCSV(alpn)
+	}
+	if fp := strings.TrimSpace(q.Get("fp")); fp != "" {
+		proxy["client-fingerprint"] = fp
 	}
 	if flow := q.Get("flow"); flow != "" {
 		proxy["flow"] = flow
 	}
 	if netw := q.Get("type"); netw == "ws" {
+		opts := map[string]any{}
+		if p := q.Get("path"); p != "" {
+			opts["path"] = p
+		}
+		if h := q.Get("host"); h != "" {
+			opts["headers"] = map[string]any{"Host": h}
+		}
+		if len(opts) > 0 {
+			proxy["ws-opts"] = opts
+		}
+	}
+	if netw := q.Get("type"); netw == "httpupgrade" || netw == "xhttp" {
+		// Clash does not have dedicated httpupgrade/xhttp networks.
+		// Map to ws-opts so clients can still use the subscription.
+		proxy["network"] = "ws"
 		opts := map[string]any{}
 		if p := q.Get("path"); p != "" {
 			opts["path"] = p
@@ -314,6 +288,9 @@ func (c *clashConverter) parseVLess(link string) (map[string]any, error) {
 		}
 		if sid := q.Get("sid"); sid != "" {
 			ro["short-id"] = sid
+		}
+		if pqv := q.Get("pqv"); pqv != "" {
+			ro["mldsa65-verify"] = pqv
 		}
 		if len(ro) > 0 {
 			proxy["reality-opts"] = ro
@@ -350,10 +327,32 @@ func (c *clashConverter) parseTrojan(link string) (map[string]any, error) {
 	if sec := q.Get("security"); sec == "tls" || sec == "reality" {
 		proxy["tls"] = true
 	}
+	if insecure := strings.TrimSpace(q.Get("allowInsecure")); insecure == "1" || strings.EqualFold(insecure, "true") {
+		proxy["skip-cert-verify"] = true
+	}
 	if sni := q.Get("sni"); sni != "" {
 		proxy["sni"] = sni
 	}
+	if alpn := strings.TrimSpace(q.Get("alpn")); alpn != "" {
+		proxy["alpn"] = splitCSV(alpn)
+	}
+	if fp := strings.TrimSpace(q.Get("fp")); fp != "" {
+		proxy["client-fingerprint"] = fp
+	}
 	if netw := q.Get("type"); netw == "ws" {
+		opts := map[string]any{}
+		if p := q.Get("path"); p != "" {
+			opts["path"] = p
+		}
+		if h := q.Get("host"); h != "" {
+			opts["headers"] = map[string]any{"Host": h}
+		}
+		if len(opts) > 0 {
+			proxy["ws-opts"] = opts
+		}
+	}
+	if netw := q.Get("type"); netw == "httpupgrade" || netw == "xhttp" {
+		proxy["network"] = "ws"
 		opts := map[string]any{}
 		if p := q.Get("path"); p != "" {
 			opts["path"] = p
@@ -382,6 +381,7 @@ func (c *clashConverter) parseTrojan(link string) (map[string]any, error) {
 
 func (c *clashConverter) parseShadowsocks(link string) (map[string]any, error) {
 	raw := strings.TrimPrefix(link, "ss://")
+	queryPart := ""
 
 	fragment := ""
 	if idx := strings.Index(raw, "#"); idx >= 0 {
@@ -391,6 +391,7 @@ func (c *clashConverter) parseShadowsocks(link string) (map[string]any, error) {
 	fragment, _ = url.QueryUnescape(fragment)
 
 	if qIdx := strings.Index(raw, "?"); qIdx >= 0 {
+		queryPart = raw[qIdx+1:]
 		raw = raw[:qIdx]
 	}
 
@@ -436,7 +437,7 @@ func (c *clashConverter) parseShadowsocks(link string) (map[string]any, error) {
 	}
 	port, _ := strconv.Atoi(hostPort.Port())
 
-	return map[string]any{
+	proxy := map[string]any{
 		"name":     fragment,
 		"type":     "ss",
 		"server":   hostPort.Hostname(),
@@ -444,5 +445,100 @@ func (c *clashConverter) parseShadowsocks(link string) (map[string]any, error) {
 		"cipher":   method,
 		"password": password,
 		"udp":      true,
-	}, nil
+	}
+
+	if queryPart != "" {
+		q, _ := url.ParseQuery(queryPart)
+		if plugin := strings.TrimSpace(q.Get("plugin")); plugin != "" {
+			pluginType, pluginOpts := parseSSPlugin(plugin)
+			if pluginType != "" {
+				proxy["plugin"] = pluginType
+			}
+			if len(pluginOpts) > 0 {
+				proxy["plugin-opts"] = pluginOpts
+			}
+		}
+		if insecure := strings.TrimSpace(q.Get("allowInsecure")); insecure == "1" || strings.EqualFold(insecure, "true") {
+			proxy["skip-cert-verify"] = true
+		}
+		if fp := strings.TrimSpace(q.Get("fp")); fp != "" {
+			proxy["client-fingerprint"] = fp
+		}
+	}
+
+	return proxy, nil
+}
+
+func (c *clashConverter) uniqueName(name string, counter map[string]int) string {
+	base := strings.TrimSpace(name)
+	if base == "" {
+		base = "node"
+	}
+	if _, ok := counter[base]; !ok {
+		counter[base] = 1
+		return base
+	}
+	counter[base]++
+	return fmt.Sprintf("%s-%d", base, counter[base])
+}
+
+func splitCSV(v string) []string {
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func parseSSPlugin(raw string) (string, map[string]any) {
+	plugin := strings.TrimSpace(raw)
+	if plugin == "" {
+		return "", nil
+	}
+	parts := strings.Split(plugin, ";")
+	pluginName := strings.ToLower(strings.TrimSpace(parts[0]))
+	opts := map[string]any{}
+
+	// Common plugin name aliases in SS share links.
+	switch pluginName {
+	case "obfs-local", "simple-obfs":
+		pluginName = "obfs"
+	case "v2ray-plugin":
+		pluginName = "v2ray-plugin"
+	}
+
+	for _, token := range parts[1:] {
+		token = strings.TrimSpace(token)
+		if token == "" {
+			continue
+		}
+		if strings.Contains(token, "=") {
+			kv := strings.SplitN(token, "=", 2)
+			k := strings.TrimSpace(kv[0])
+			v := strings.TrimSpace(kv[1])
+			switch k {
+			case "obfs", "mode":
+				opts["mode"] = v
+			case "obfs-host", "host":
+				opts["host"] = v
+			case "path":
+				opts["path"] = v
+			case "tls":
+				opts["tls"] = (v == "1" || strings.EqualFold(v, "true"))
+			default:
+				opts[k] = v
+			}
+		} else if token == "tls" {
+			opts["tls"] = true
+		}
+	}
+
+	if len(opts) == 0 {
+		return pluginName, nil
+	}
+	return pluginName, opts
 }

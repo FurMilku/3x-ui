@@ -75,7 +75,6 @@ type AllSetting struct {
 	SubShowInfo                 bool   `json:"subShowInfo" form:"subShowInfo"`                                 // Show client information in subscriptions
 	SubURI                      string `json:"subURI" form:"subURI"`                                           // Subscription server URI
 	SubClashURI                 string `json:"subClashURI" form:"subClashURI"`                                 // Clash subscription URI
-	SubClashRules               string `json:"subClashRules" form:"subClashRules"`                               // Clash rules template (supports ${PROXY_GROUP})
 	SubJsonPath                 string `json:"subJsonPath" form:"subJsonPath"`                                 // Path for JSON subscription endpoint
 	SubJsonURI                  string `json:"subJsonURI" form:"subJsonURI"`                                   // JSON subscription server URI
 	SubJsonFragment             string `json:"subJsonFragment" form:"subJsonFragment"`                         // JSON subscription fragment configuration

@@ -22,7 +22,6 @@ type SUBController struct {
 	subPath          string
 	subJsonPath      string
 	subClashURI      string
-	clashRules       string
 	jsonEnabled      bool
 	subEncrypt       bool
 	updateInterval   string
@@ -37,7 +36,6 @@ func NewSUBController(
 	subPath string,
 	jsonPath string,
 	clashURI string,
-	clashRules string,
 	jsonEnabled bool,
 	encrypt bool,
 	showInfo bool,
@@ -65,7 +63,6 @@ func NewSUBController(
 		subPath:          subPath,
 		subJsonPath:      jsonPath,
 		subClashURI:      clashURI,
-		clashRules:       clashRules,
 		jsonEnabled:      jsonEnabled,
 		subEncrypt:       encrypt,
 		updateInterval:   update,
@@ -112,7 +109,7 @@ func (a *SUBController) subs(c *gin.Context) {
 			}
 			a.ApplyCommonHeaders(c, header, a.updateInterval, a.subTitle, a.subSupportUrl, profileUrl, a.subAnnounce, a.subEnableRouting, a.subRoutingRules)
 
-			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, a.subTitle, a.clashRules)
+			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, a.subTitle)
 			if convErr != nil || clashYAML == "" {
 				c.String(400, "Error!")
 				return
