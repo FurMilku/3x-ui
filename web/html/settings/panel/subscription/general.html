@@ -57,9 +57,9 @@
         </a-setting-list-item>
         <a-setting-list-item paddings="small">
             <template #title>Clash Subscription URI</template>
-            <template #description>Optional. Used for Clash/Mihomo subscription links and QR on sub page.</template>
+            <template #description>Optional. Leave empty to use the same URI as normal subscription.</template>
             <template #control>
-                <a-input type="text" placeholder="(http|https)://domain[:port]/path/?target=clash"
+                <a-input type="text" placeholder="(http|https)://domain[:port]/path/"
                     v-model="allSetting.subClashURI"></a-input>
             </template>
         </a-setting-list-item>

@@ -812,7 +812,7 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 			result["subURI"] = subURI + subPath
 		}
 		if subEnable && result["subClashURI"].(string) == "" {
-			result["subClashURI"] = subURI + subPath + "?target=clash"
+			result["subClashURI"] = subURI + subPath
 		}
 		if result["subTitle"].(string) == "" {
 			result["subTitle"] = subTitle

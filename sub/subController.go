@@ -98,8 +98,10 @@ func (a *SUBController) subs(c *gin.Context) {
 			result += sub + "\n"
 		}
 
-		// Convert to Clash/Mihomo profile when requested by target query.
-		if strings.EqualFold(c.Query("target"), "clash") || strings.EqualFold(c.Query("target"), "mihomo") {
+		// Convert to Clash/Mihomo profile:
+		// - explicit query target=clash|mihomo
+		// - or auto-detected by User-Agent, so existing sub links can be imported directly.
+		if a.shouldReturnClash(c) {
 			header := fmt.Sprintf("upload=%d; download=%d; total=%d; expire=%d", traffic.Up, traffic.Down, traffic.Total, traffic.ExpiryTime/1000)
 			profileUrl := a.subProfileUrl
 			if profileUrl == "" {
@@ -178,6 +180,25 @@ func (a *SUBController) subs(c *gin.Context) {
 			c.String(200, result)
 		}
 	}
+}
+
+func (a *SUBController) shouldReturnClash(c *gin.Context) bool {
+	target := strings.ToLower(strings.TrimSpace(c.Query("target")))
+	if target == "clash" || target == "mihomo" {
+		return true
+	}
+
+	ua := strings.ToLower(c.GetHeader("User-Agent"))
+	if ua == "" {
+		return false
+	}
+
+	// Match common clients using Clash/Mihomo cores.
+	return strings.Contains(ua, "clash") ||
+		strings.Contains(ua, "mihomo") ||
+		strings.Contains(ua, "metacubex") ||
+		strings.Contains(ua, "clash-verge") ||
+		strings.Contains(ua, "clash-meta")
 }
 
 // subJsons handles HTTP requests for JSON subscription configurations.

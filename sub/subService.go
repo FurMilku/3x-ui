@@ -1105,11 +1105,11 @@ func (s *SubService) BuildURLs(scheme, hostWithPort, subPath, subJsonPath, subCl
 
 	// Build Clash subscription URL:
 	// - custom URI has priority
-	// - otherwise fallback to standard sub URL with target=clash
+	// - otherwise use the same standard sub URL (controller auto-detects Clash/Mihomo clients)
 	if subClashURI != "" {
 		subClashURL = s.buildSingleURL(subClashURI, baseScheme, baseHostWithPort, "", subId)
 	} else if subURL != "" {
-		subClashURL = subURL + "?target=clash"
+		subClashURL = subURL
 	}
 
 	return subURL, subJsonURL, subClashURL
