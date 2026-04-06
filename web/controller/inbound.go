@@ -127,6 +127,7 @@ func (a *InboundController) addInbound(c *gin.Context) {
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
 	}
+	service.RemoteSyncAfterInboundListChange(user.Id)
 	// Broadcast inbounds update via WebSocket
 	inbounds, _ := a.inboundService.GetInbounds(user.Id)
 	websocket.BroadcastInbounds(inbounds)
@@ -139,6 +140,12 @@ func (a *InboundController) delInbound(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundDeleteSuccess"), err)
 		return
 	}
+	user := session.GetLoginUser(c)
+	prev, _ := a.inboundService.GetInbound(id)
+	tag := ""
+	if prev != nil {
+		tag = prev.Tag
+	}
 	needRestart, err := a.inboundService.DelInbound(id)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -148,8 +155,10 @@ func (a *InboundController) delInbound(c *gin.Context) {
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
 	}
+	if tag != "" {
+		service.RemoteSyncInboundDeleted(user.Id, tag)
+	}
 	// Broadcast inbounds update via WebSocket
-	user := session.GetLoginUser(c)
 	inbounds, _ := a.inboundService.GetInbounds(user.Id)
 	websocket.BroadcastInbounds(inbounds)
 }
@@ -178,8 +187,9 @@ func (a *InboundController) updateInbound(c *gin.Context) {
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
 	}
-	// Broadcast inbounds update via WebSocket
 	user := session.GetLoginUser(c)
+	service.RemoteSyncAfterInboundChange(user.Id, id)
+	// Broadcast inbounds update via WebSocket
 	inbounds, _ := a.inboundService.GetInbounds(user.Id)
 	websocket.BroadcastInbounds(inbounds)
 }
@@ -254,6 +264,8 @@ func (a *InboundController) addInboundClient(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	user := session.GetLoginUser(c)
+	service.RemoteSyncAfterInboundChange(user.Id, data.Id)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientAddSuccess"), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -274,6 +286,8 @@ func (a *InboundController) delInboundClient(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	user := session.GetLoginUser(c)
+	service.RemoteSyncAfterInboundChange(user.Id, id)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientDeleteSuccess"), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -296,6 +310,8 @@ func (a *InboundController) updateInboundClient(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	user := session.GetLoginUser(c)
+	service.RemoteSyncAfterInboundChange(user.Id, inbound.Id)
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundClientUpdateSuccess"), nil)
 	if needRestart {
 		a.xrayService.SetToNeedRestart()
@@ -379,6 +395,9 @@ func (a *InboundController) importInbound(c *gin.Context) {
 	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundCreateSuccess"), inbound, err)
 	if err == nil && needRestart {
 		a.xrayService.SetToNeedRestart()
+	}
+	if err == nil {
+		service.RemoteSyncAfterInboundListChange(user.Id)
 	}
 }
 

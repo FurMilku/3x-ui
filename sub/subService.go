@@ -39,19 +39,29 @@ func NewSubService(showInfo bool, remarkModel string) *SubService {
 }
 
 // GetSubs retrieves subscription links for a given subscription ID and host.
-func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.ClientTraffic, error) {
+// It also returns a preferred Clash group name derived from inbound remark.
+func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.ClientTraffic, string, error) {
 	s.address = host
 	var result []string
 	var traffic xray.ClientTraffic
 	var lastOnline int64
+	groupName := ""
 	var clientTraffics []xray.ClientTraffic
 	inbounds, err := s.getInboundsBySubId(subId)
 	if err != nil {
-		return nil, 0, traffic, err
+		return nil, 0, traffic, groupName, err
 	}
 
 	if len(inbounds) == 0 {
-		return nil, 0, traffic, common.NewError("No inbounds found with ", subId)
+		merged := s.mergeRemoteSubscriptionLines(subId, nil)
+		if len(merged) == 0 {
+			return nil, 0, traffic, groupName, common.NewError("No inbounds found with ", subId)
+		}
+		s.datepicker, err = s.settingService.GetDatepicker()
+		if err != nil || s.datepicker == "" {
+			s.datepicker = "gregorian"
+		}
+		return merged, 0, traffic, groupName, nil
 	}
 
 	s.datepicker, err = s.settingService.GetDatepicker()
@@ -59,6 +69,9 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 		s.datepicker = "gregorian"
 	}
 	for _, inbound := range inbounds {
+		if groupName == "" {
+			groupName = strings.TrimSpace(inbound.Remark)
+		}
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
 			logger.Error("SubService - GetClients: Unable to get clients from inbound")
@@ -109,7 +122,8 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 			}
 		}
 	}
-	return result, lastOnline, traffic, nil
+	result = s.mergeRemoteSubscriptionLines(subId, result)
+	return result, lastOnline, traffic, groupName, nil
 }
 
 func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) {

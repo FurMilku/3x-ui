@@ -48,6 +48,10 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	server := api.Group("/server")
 	a.serverController = NewServerController(server)
 
+	// Remote slave panels (master UI)
+	remotePanels := api.Group("/remotePanels")
+	NewRemotePanelController(remotePanels)
+
 	// Extra routes
 	api.GET("/backuptotgbot", a.BackuptoTgbot)
 }

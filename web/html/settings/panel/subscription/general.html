@@ -63,6 +63,14 @@
                     v-model="allSetting.subClashURI"></a-input>
             </template>
         </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>{{ i18n "pages.settings.subMergeURLs"}}</template>
+            <template #description>{{ i18n "pages.settings.subMergeURLsDesc"}}</template>
+            <template #control>
+                <a-textarea v-model="allSetting.subMergeURLs" :rows="4"
+                    placeholder="https://other-panel.example.com/sub/{subid}"></a-textarea>
+            </template>
+        </a-setting-list-item>
     </a-collapse-panel>
     <a-collapse-panel key="2" header='{{ i18n "pages.settings.information" }}'>
         <a-setting-list-item paddings="small">

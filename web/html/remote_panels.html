@@ -1,0 +1,286 @@
+{{ template "page/head_start" .}}
+{{ template "page/head_end" .}}
+
+{{ template "page/body_start" .}}
+<a-layout id="app" v-cloak :class="themeSwitcher.currentTheme + ' remote-panels-page'">
+  <a-sidebar></a-sidebar>
+  <a-layout id="content-layout">
+    <a-layout-content>
+      <a-spin :spinning="loading" :delay="400" tip='{{ i18n "loading"}}'>
+        <a-row :gutter="[16, 12]">
+          <a-col :span="24">
+            <a-card size="small" hoverable>
+              <template #title>
+                <a-space>
+                  <span>{{ i18n "pages.remotePanels.title" }}</span>
+                  <a-tag color="blue">{{ i18n "pages.remotePanels.hint" }}</a-tag>
+                </a-space>
+              </template>
+              <template #extra>
+                <a-space>
+                  <a-button icon="sync" @click="loadList" :loading="loading"></a-button>
+                  <a-button type="primary" icon="plus" @click="openModal()">{{ i18n "pages.remotePanels.add" }}</a-button>
+                  <a-button icon="cloud-upload" @click="syncAll" :loading="syncingAll">{{ i18n "pages.remotePanels.syncAll" }}</a-button>
+                </a-space>
+              </template>
+              <a-table :columns="columns" :data-source="panels" :row-key="r => r.id" :pagination="false"
+                :locale='{ emptyText: `{{ i18n "noData" }}` }'>
+                <template slot="remark" slot-scope="text, row">
+                  <span>[[ row.remark || ('#' + row.id) ]]</span>
+                </template>
+                <template slot="usage" slot-scope="text, row">
+                  <span v-if="live[row.id] && live[row.id].ok">
+                    ↑ [[ formatSize(live[row.id].usedUp) ]] / ↓ [[ formatSize(live[row.id].usedDown) ]]
+                  </span>
+                  <span v-else class="ant-typography-secondary">—</span>
+                </template>
+                <template slot="speed" slot-scope="text, row">
+                  <span v-if="live[row.id] && live[row.id].ok">
+                    ↑ [[ formatSize(live[row.id].netUp) ]]/s / ↓ [[ formatSize(live[row.id].netDown) ]]/s
+                  </span>
+                  <span v-else class="ant-typography-secondary">—</span>
+                </template>
+                <template slot="xray" slot-scope="text, row">
+                  <a-tag v-if="live[row.id] && live[row.id].ok" color="cyan">[[ live[row.id].xray ]]</a-tag>
+                  <span v-else class="ant-typography-secondary">—</span>
+                </template>
+                <template slot="autoSync" slot-scope="text, row">
+                  <a-tag :color="row.autoSync ? 'green' : 'default'">[[ row.autoSync ? '{{ i18n "yes" }}' : '{{ i18n "no" }}' ]]</a-tag>
+                </template>
+                <template slot="action" slot-scope="text, row">
+                  <a-space>
+                    <a-button size="small" @click="refreshOne(row)">{{ i18n "pages.remotePanels.refresh" }}</a-button>
+                    <a-button size="small" @click="testOne(row)">{{ i18n "pages.remotePanels.test" }}</a-button>
+                    <a-button size="small" @click="syncOne(row)" :loading="syncingId === row.id">{{ i18n "pages.remotePanels.sync" }}</a-button>
+                    <a-button size="small" @click="openModal(row)">{{ i18n "edit" }}</a-button>
+                    <a-button size="small" type="danger" @click="delRow(row)">{{ i18n "delete" }}</a-button>
+                  </a-space>
+                </template>
+              </a-table>
+            </a-card>
+          </a-col>
+        </a-row>
+      </a-spin>
+
+      <a-modal :title="modalTitle" :visible="modalVisible" :confirm-loading="modalLoading"
+        @ok="savePanel" @cancel="modalVisible = false" :ok-text="'{{ i18n "confirm" }}'" :cancel-text="'{{ i18n "cancel" }}'">
+        <a-form layout="vertical">
+          <a-form-item :label="'{{ i18n "pages.remotePanels.remark" }}'">
+            <a-input v-model="form.remark" /></a-form-item>
+          <a-form-item :label="'{{ i18n "pages.remotePanels.baseUrl" }}'">
+            <a-input v-model="form.baseUrl" placeholder="https://host:2053" /></a-form-item>
+          <template v-if="!editingId">
+            <a-divider orientation="left">{{ i18n "pages.remotePanels.slaveLogin" }}</a-divider>
+            <a-alert type="info" show-icon :style="{ marginBottom: '12px' }"
+              :message="'{{ i18n "pages.remotePanels.slaveCredsIntro" }}'"></a-alert>
+            <a-form-item :label="'{{ i18n "pages.remotePanels.slaveUsername" }}'" required>
+              <a-input v-model="form.username" autocomplete="off" :placeholder="'{{ i18n "pages.remotePanels.slaveUsernamePh" }}'" /></a-form-item>
+            <a-form-item :label="'{{ i18n "pages.remotePanels.slavePassword" }}'" required>
+              <a-input-password v-model="form.password" autocomplete="new-password"
+                :placeholder="'{{ i18n "pages.remotePanels.slavePasswordPh" }}'" /></a-form-item>
+          </template>
+          <template v-else>
+            <a-divider orientation="left">{{ i18n "pages.remotePanels.slaveLogin" }}</a-divider>
+            <a-alert type="info" show-icon :style="{ marginBottom: '12px' }"
+              :message="'{{ i18n "pages.remotePanels.slaveCredsEditHint" }}'"></a-alert>
+            <a-form-item :label="'{{ i18n "pages.remotePanels.slaveUsername" }}'">
+              <a-input v-model="form.username" autocomplete="off" /></a-form-item>
+            <a-form-item :label="'{{ i18n "pages.remotePanels.slavePasswordNew" }}'">
+              <a-input-password v-model="form.password" autocomplete="new-password"
+                :placeholder="'{{ i18n "pages.remotePanels.passwordKeep" }}'" /></a-form-item>
+          </template>
+          <a-form-item :label="'{{ i18n "pages.remotePanels.skipTls" }}'">
+            <a-switch v-model="form.skipTlsVerify"></a-switch>
+          </a-form-item>
+          <a-form-item :label="'{{ i18n "pages.remotePanels.autoSync" }}'">
+            <a-switch v-model="form.autoSync"></a-switch>
+          </a-form-item>
+          <a-form-item :label="'{{ i18n "pages.remotePanels.sort" }}'">
+            <a-input-number v-model="form.sort" :min="0" style="width:100%"></a-input-number>
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </a-layout-content>
+  </a-layout>
+</a-layout>
+{{template "page/body_scripts" .}}
+{{template "component/aSidebar" .}}
+{{template "component/aThemeSwitch" .}}
+<script>
+  const app = new Vue({
+    delimiters: ['[[', ']]'],
+    el: '#app',
+    data() {
+      return {
+        themeSwitcher,
+        loading: false,
+        panels: [],
+        live: {},
+        syncingAll: false,
+        syncingId: null,
+        pollTimer: null,
+        modalVisible: false,
+        modalLoading: false,
+        editingId: null,
+        form: {
+          remark: '',
+          baseUrl: '',
+          username: '',
+          password: '',
+          skipTlsVerify: false,
+          autoSync: true,
+          sort: 0,
+        },
+        columns: [
+          { title: 'ID', dataIndex: 'id', width: 60 },
+          { title: '{{ i18n "pages.remotePanels.remark" }}', scopedSlots: { customRender: 'remark' } },
+          { title: 'URL', dataIndex: 'baseUrl', ellipsis: true },
+          { title: '{{ i18n "pages.remotePanels.autoSync" }}', scopedSlots: { customRender: 'autoSync' }, width: 100 },
+          { title: '{{ i18n "pages.remotePanels.usage" }}', scopedSlots: { customRender: 'usage' }, width: 220 },
+          { title: '{{ i18n "pages.remotePanels.speed" }}', scopedSlots: { customRender: 'speed' }, width: 240 },
+          { title: 'Xray', scopedSlots: { customRender: 'xray' }, width: 100 },
+          { title: '{{ i18n "pages.inbounds.operate" }}', scopedSlots: { customRender: 'action' }, width: 420 },
+        ],
+      };
+    },
+    computed: {
+      modalTitle() {
+        return this.editingId ? '{{ i18n "pages.remotePanels.edit" }}' : '{{ i18n "pages.remotePanels.add" }}';
+      },
+    },
+    async mounted() {
+      await this.loadList();
+      this.startPoll();
+    },
+    beforeDestroy() {
+      if (this.pollTimer) clearInterval(this.pollTimer);
+    },
+    methods: {
+      formatSize(n) {
+        if (n == null || n === undefined) return '0';
+        return SizeFormatter.sizeFormat(Number(n));
+      },
+      async loadList() {
+        this.loading = true;
+        try {
+          const msg = await HttpUtil.get('panel/api/remotePanels/list');
+          if (msg && msg.success && msg.obj) {
+            this.panels = msg.obj;
+            await this.refreshAllLive();
+          }
+        } finally {
+          this.loading = false;
+        }
+      },
+      startPoll() {
+        this.pollTimer = setInterval(() => this.refreshAllLive(), 10000);
+      },
+      async refreshAllLive() {
+        for (const p of this.panels) {
+          await this.fetchLive(p.id);
+        }
+      },
+      async fetchLive(id) {
+        const msg = await HttpUtil.get('panel/api/remotePanels/live/' + id);
+        if (msg && msg.success && msg.obj) {
+          Vue.set(this.live, id, msg.obj);
+        }
+      },
+      async refreshOne(row) {
+        await this.fetchLive(row.id);
+      },
+      async testOne(row) {
+        await HttpUtil.post('panel/api/remotePanels/test/' + row.id, {});
+      },
+      async syncOne(row) {
+        this.syncingId = row.id;
+        try {
+          await HttpUtil.post('panel/api/remotePanels/sync/' + row.id, {});
+        } finally {
+          this.syncingId = null;
+        }
+      },
+      async syncAll() {
+        this.syncingAll = true;
+        try {
+          await HttpUtil.post('panel/api/remotePanels/syncAll', {});
+        } finally {
+          this.syncingAll = false;
+        }
+      },
+      openModal(row) {
+        if (row) {
+          this.editingId = row.id;
+          this.form = {
+            remark: row.remark || '',
+            baseUrl: row.baseUrl || '',
+            username: row.username || '',
+            password: '',
+            skipTlsVerify: !!row.skipTlsVerify,
+            autoSync: !!row.autoSync,
+            sort: row.sort || 0,
+          };
+        } else {
+          this.editingId = null;
+          this.form = {
+            remark: '',
+            baseUrl: '',
+            username: '',
+            password: '',
+            skipTlsVerify: false,
+            autoSync: true,
+            sort: 0,
+          };
+        }
+        this.modalVisible = true;
+      },
+      async savePanel() {
+        if (!this.editingId) {
+          const u = (this.form.username || '').trim();
+          const p = (this.form.password || '');
+          if (!u) {
+            this.$message.error('{{ i18n "pages.remotePanels.errSlaveUser" }}');
+            return;
+          }
+          if (!p) {
+            this.$message.error('{{ i18n "pages.remotePanels.errSlavePass" }}');
+            return;
+          }
+        }
+        this.modalLoading = true;
+        try {
+          const body = { ...this.form };
+          body.username = (body.username || '').trim();
+          if (this.editingId && !body.password) {
+            delete body.password;
+          }
+          let msg;
+          if (this.editingId) {
+            msg = await HttpUtil.post('panel/api/remotePanels/update/' + this.editingId, body);
+          } else {
+            msg = await HttpUtil.post('panel/api/remotePanels/add', body);
+          }
+          if (msg && msg.success) {
+            this.modalVisible = false;
+            await this.loadList();
+          }
+        } finally {
+          this.modalLoading = false;
+        }
+      },
+      delRow(row) {
+        this.$confirm({
+          title: '{{ i18n "delete" }} #' + row.id,
+          content: row.baseUrl,
+          okText: '{{ i18n "delete" }}',
+          cancelText: '{{ i18n "cancel" }}',
+          onOk: async () => {
+            const msg = await HttpUtil.post('panel/api/remotePanels/del/' + row.id, {});
+            if (msg && msg.success) await this.loadList();
+          },
+        });
+      },
+    },
+  });
+</script>
+{{ template "page/body_end" .}}

@@ -89,7 +89,7 @@ func (a *SUBController) initRouter(g *gin.RouterGroup) {
 func (a *SUBController) subs(c *gin.Context) {
 	subId := c.Param("subid")
 	scheme, host, hostWithPort, hostHeader := a.subService.ResolveRequest(c)
-	subs, lastOnline, traffic, err := a.subService.GetSubs(subId, host)
+	subs, lastOnline, traffic, clashGroupName, err := a.subService.GetSubs(subId, host)
 	if err != nil || len(subs) == 0 {
 		c.String(400, "Error!")
 	} else {
@@ -109,7 +109,14 @@ func (a *SUBController) subs(c *gin.Context) {
 			}
 			a.ApplyCommonHeaders(c, header, a.updateInterval, a.subTitle, a.subSupportUrl, profileUrl, a.subAnnounce, a.subEnableRouting, a.subRoutingRules)
 
-			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, a.subTitle)
+			// Optional clash profile mode:
+			// - compat: minimal groups/dns for old clients
+			// - default/enhanced: richer template aligned with mihomo examples
+			clashProfile := strings.TrimSpace(c.Query("clashProfile"))
+			if strings.TrimSpace(clashGroupName) == "" {
+				clashGroupName = a.subTitle
+			}
+			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, clashGroupName, clashProfile)
 			if convErr != nil || clashYAML == "" {
 				c.String(400, "Error!")
 				return

@@ -19,7 +19,7 @@ func newClashConverter() *clashConverter {
 	return &clashConverter{}
 }
 
-func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, subTitle string) (string, error) {
+func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, subTitle string, profile string) (string, error) {
 	_ = traffic
 	proxies := make([]map[string]any, 0, len(links))
 	proxyNames := make([]string, 0, len(links))
@@ -58,32 +58,40 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 		{
 			"name":    groupName,
 			"type":    "select",
-			"proxies": append([]string{autoName, fallbackName}, allNames...),
-		},
-		{
-			"name":     autoName,
-			"type":     "url-test",
-			"url":      "http://www.gstatic.com/generate_204",
-			"interval": 86400,
-			"proxies":  allNames,
-		},
-		{
-			"name":     fallbackName,
-			"type":     "fallback",
-			"url":      "http://www.gstatic.com/generate_204",
-			"interval": 7200,
-			"proxies":  allNames,
+			"proxies": allNames,
 		},
 	}
+	if strings.ToLower(strings.TrimSpace(profile)) != "compat" {
+		groups[0]["proxies"] = append([]string{autoName, fallbackName}, allNames...)
+		groups = append(groups,
+			map[string]any{
+				"name":     autoName,
+				"type":     "url-test",
+				"url":      "http://www.gstatic.com/generate_204",
+				"interval": 86400,
+				"proxies":  allNames,
+			},
+			map[string]any{
+				"name":     fallbackName,
+				"type":     "fallback",
+				"url":      "http://www.gstatic.com/generate_204",
+				"interval": 7200,
+				"proxies":  allNames,
+			},
+		)
+	}
 
-	cfg := map[string]any{
-		"mixed-port":          7890,
-		"allow-lan":           true,
-		"bind-address":        "*",
-		"mode":                "rule",
-		"log-level":           "info",
-		"external-controller": "127.0.0.1:9090",
-		"dns": map[string]any{
+	dnsCfg := map[string]any{
+		"enable":             true,
+		"ipv6":               true,
+		"default-nameserver": []string{"223.5.5.5", "119.29.29.29"},
+		"enhanced-mode":      "fake-ip",
+		"fake-ip-range":      "198.18.0.1/16",
+		"use-hosts":          true,
+		"nameserver":         []string{"https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"},
+	}
+	if strings.ToLower(strings.TrimSpace(profile)) == "compat" {
+		dnsCfg = map[string]any{
 			"enable":             true,
 			"ipv6":               false,
 			"default-nameserver": []string{"223.5.5.5", "119.29.29.29"},
@@ -91,9 +99,30 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 			"fake-ip-range":      "198.18.0.1/16",
 			"use-hosts":          true,
 			"nameserver":         []string{"https://doh.pub/dns-query", "https://dns.alidns.com/dns-query"},
+		}
+	}
+
+	cfg := map[string]any{
+		"mixed-port":          7890,
+		"allow-lan":           true,
+		"bind-address":        "*",
+		"find-process-mode":   "strict",
+		"mode":                "rule",
+		"log-level":           "info",
+		"ipv6":                true,
+		"external-controller": "127.0.0.1:9090",
+		"geox-url": map[string]any{
+			"geoip":   "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat",
+			"geosite": "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat",
+			"mmdb":    "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb",
 		},
+		"profile": map[string]any{
+			"store-selected": false,
+			"store-fake-ip":  true,
+		},
+		"dns":                 dnsCfg,
 		"proxies":             proxies,
-		"proxy-groups": groups,
+		"proxy-groups":        groups,
 		"rules": []string{
 			"DOMAIN,injections.adguard.org,DIRECT",
 			"DOMAIN,local.adguard.org,DIRECT",
@@ -109,6 +138,12 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 			"GEOIP,CN,DIRECT",
 			"MATCH," + groupName,
 		},
+	}
+	if strings.ToLower(strings.TrimSpace(profile)) == "compat" {
+		delete(cfg, "geox-url")
+		delete(cfg, "profile")
+		cfg["ipv6"] = false
+		cfg["find-process-mode"] = "off"
 	}
 
 	out, err := yaml.Marshal(cfg)
@@ -165,16 +200,29 @@ func (c *clashConverter) parseVMess(link string) (map[string]any, error) {
 	if scy := strings.TrimSpace(fmt.Sprint(obj["scy"])); scy != "" && scy != "<nil>" {
 		proxy["cipher"] = scy
 	}
-	if network != "" && network != "tcp" {
+	if network == "httpupgrade" || network == "xhttp" {
+		// Clash does not have dedicated httpupgrade/xhttp networks.
+		// Map to ws while preserving host/path.
+		proxy["network"] = "ws"
+	} else if network != "" && network != "tcp" {
 		proxy["network"] = network
 	}
 	if tls := strings.EqualFold(fmt.Sprint(obj["tls"]), "tls"); tls {
 		proxy["tls"] = true
 	}
+	if insecure := strings.TrimSpace(fmt.Sprint(obj["allowInsecure"])); insecure == "1" || strings.EqualFold(insecure, "true") {
+		proxy["skip-cert-verify"] = true
+	}
 	if sni := strings.TrimSpace(fmt.Sprint(obj["sni"])); sni != "" && sni != "<nil>" {
 		proxy["servername"] = sni
 	}
-	if network == "ws" {
+	if alpn := strings.TrimSpace(fmt.Sprint(obj["alpn"])); alpn != "" && alpn != "<nil>" {
+		proxy["alpn"] = splitCSV(alpn)
+	}
+	if fp := strings.TrimSpace(fmt.Sprint(obj["fp"])); fp != "" && fp != "<nil>" {
+		proxy["client-fingerprint"] = fp
+	}
+	if network == "ws" || network == "httpupgrade" || network == "xhttp" {
 		opts := map[string]any{}
 		if p := strings.TrimSpace(fmt.Sprint(obj["path"])); p != "" && p != "<nil>" {
 			opts["path"] = p

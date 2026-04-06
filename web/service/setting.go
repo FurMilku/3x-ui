@@ -70,6 +70,7 @@ var defaultValueMap = map[string]string{
 	"subShowInfo":                 "true",
 	"subURI":                      "",
 	"subClashURI":                 "",
+	"subMergeURLs":                "",
 	"subJsonPath":                 "/json/",
 	"subJsonURI":                  "",
 	"subJsonFragment":             "",
@@ -554,6 +555,10 @@ func (s *SettingService) GetSubURI() (string, error) {
 
 func (s *SettingService) GetSubClashURI() (string, error) {
 	return s.getString("subClashURI")
+}
+
+func (s *SettingService) GetSubMergeURLs() (string, error) {
+	return s.getString("subMergeURLs")
 }
 
 func (s *SettingService) GetSubJsonURI() (string, error) {

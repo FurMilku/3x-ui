@@ -48,6 +48,7 @@ class AllSetting {
         this.subShowInfo = true;
         this.subURI = "";
         this.subClashURI = "";
+        this.subMergeURLs = "";
         this.subJsonURI = "";
         this.subJsonFragment = "";
         this.subJsonNoises = "";

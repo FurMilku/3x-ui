@@ -404,6 +404,8 @@
 "subShowInfoDesc" = "客戶端應用中將顯示剩餘流量和日期資訊"
 "subURI" = "反向代理 URI"
 "subURIDesc" = "用於代理後面的訂閱 URL 的 URI 路徑"
+"subMergeURLs" = "合併訂閱地址"
+"subMergeURLsDesc" = "每行一個網址。在本地節點之後，面板會依序拉取一般訂閱（不要帶 ?target=clash），去重後附加節點。用占位符 {subid} 表示目前訂閱 ID。其它機器上的客戶端需使用相同 subId，無需重裝遠端面板。流量統計標頭僅反映本機。"
 "externalTrafficInformEnable" = "外部交通通知"
 "externalTrafficInformEnableDesc" = "每次流量更新時通知外部 API"
 "externalTrafficInformURI" = "外部流量通知 URI"
