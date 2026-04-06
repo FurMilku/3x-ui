@@ -199,6 +199,8 @@
 "test" = "测试连接"
 "sync" = "立即同步"
 "syncAll" = "同步全部从机"
+"totalClients" = "总客户端"
+"onlineClients" = "当前在线"
 
 [pages.inbounds]
 "allTimeTraffic" = "累计总流量"

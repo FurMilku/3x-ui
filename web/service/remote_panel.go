@@ -34,6 +34,10 @@ type RemotePanelStatus struct {
 	UsedUp   uint64 `json:"usedUp"`   // sum of inbound up (from list) — optional
 	UsedDown uint64 `json:"usedDown"` // sum of inbound down
 	Xray     string `json:"xray"`     // running state string
+	// TotalClients counts clients in multi-user inbounds (same rules as inbound list UI).
+	TotalClients int `json:"totalClients"`
+	// OnlineClients is len(slave online emails); -1 if the slave did not return onlines.
+	OnlineClients int `json:"onlineClients"`
 }
 
 // ListByUser returns remote panels for a user (passwords cleared).
@@ -324,6 +328,72 @@ func (c *remoteAPIClient) serverStatus() (*Status, error) {
 	return &st, nil
 }
 
+// ssSingleUserMethod is Shadowsocks single-user (no per-client row in the inbound UI).
+const ssSingleUserMethod = "2022-blake3-chacha20-poly1305"
+
+func countClientsFromSettingsJSON(settings string) int {
+	if settings == "" {
+		return 0
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(settings), &m); err != nil {
+		return 0
+	}
+	raw, ok := m["clients"]
+	if !ok || len(raw) == 0 {
+		return 0
+	}
+	var arr []json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err != nil {
+		return 0
+	}
+	return len(arr)
+}
+
+func countClientsInInbound(ib *model.Inbound) int {
+	if ib == nil {
+		return 0
+	}
+	switch ib.Protocol {
+	case model.VMESS, model.VLESS, model.Trojan:
+		return countClientsFromSettingsJSON(ib.Settings)
+	case model.Shadowsocks:
+		var probe struct {
+			Method string `json:"method"`
+		}
+		_ = json.Unmarshal([]byte(ib.Settings), &probe)
+		if probe.Method == ssSingleUserMethod {
+			return 0
+		}
+		return countClientsFromSettingsJSON(ib.Settings)
+	default:
+		return 0
+	}
+}
+
+func countInboundListClients(inbounds []*model.Inbound) int {
+	n := 0
+	for _, ib := range inbounds {
+		n += countClientsInInbound(ib)
+	}
+	return n
+}
+
+func (c *remoteAPIClient) getOnlines() ([]string, error) {
+	env, err := c.postJSON("/panel/api/inbounds/onlines", struct{}{})
+	if err != nil {
+		return nil, err
+	}
+	if !env.Success {
+		return nil, fmt.Errorf("onlines: %s", env.Msg)
+	}
+	var emails []string
+	if err := json.Unmarshal(env.Obj, &emails); err != nil {
+		return nil, err
+	}
+	return emails, nil
+}
+
 // FetchLiveStatus logs in and returns traffic + net speeds from the slave.
 func (s *RemotePanelService) FetchLiveStatus(p *model.RemotePanel) RemotePanelStatus {
 	out := RemotePanelStatus{OK: false}
@@ -354,6 +424,11 @@ func (s *RemotePanelService) FetchLiveStatus(p *model.RemotePanel) RemotePanelSt
 	for _, ib := range list {
 		uu += ib.Up
 		dd += ib.Down
+	}
+	out.TotalClients = countInboundListClients(list)
+	out.OnlineClients = -1
+	if onlines, err := cl.getOnlines(); err == nil {
+		out.OnlineClients = len(onlines)
 	}
 	out.OK = true
 	out.NetUp = st.NetIO.Up

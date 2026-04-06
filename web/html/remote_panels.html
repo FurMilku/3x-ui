@@ -50,6 +50,19 @@
                 <template slot="autoSync" slot-scope="text, row">
                   <a-tag :color="row.autoSync ? 'green' : 'default'">[[ row.autoSync ? '{{ i18n "yes" }}' : '{{ i18n "no" }}' ]]</a-tag>
                 </template>
+                <template slot="totalClients" slot-scope="text, row">
+                  <span v-if="live[row.id] && live[row.id].ok">
+                    [[ typeof live[row.id].totalClients === 'number' ? live[row.id].totalClients : '—' ]]
+                  </span>
+                  <span v-else class="ant-typography-secondary">—</span>
+                </template>
+                <template slot="onlineClients" slot-scope="text, row">
+                  <span v-if="live[row.id] && live[row.id].ok && typeof live[row.id].onlineClients === 'number' && live[row.id].onlineClients >= 0">
+                    [[ live[row.id].onlineClients ]]
+                  </span>
+                  <span v-else-if="live[row.id] && live[row.id].ok" class="ant-typography-secondary">—</span>
+                  <span v-else class="ant-typography-secondary">—</span>
+                </template>
                 <template slot="action" slot-scope="text, row">
                   <a-space>
                     <a-button size="small" @click="refreshOne(row)">{{ i18n "pages.remotePanels.refresh" }}</a-button>
@@ -153,6 +166,8 @@
           { title: 'URL', dataIndex: 'baseUrl', ellipsis: true },
           { title: '{{ i18n "pages.remotePanels.mergeSub" }}', scopedSlots: { customRender: 'mergeSub' }, width: 100 },
           { title: '{{ i18n "pages.remotePanels.autoSync" }}', scopedSlots: { customRender: 'autoSync' }, width: 100 },
+          { title: '{{ i18n "pages.remotePanels.totalClients" }}', scopedSlots: { customRender: 'totalClients' }, width: 100 },
+          { title: '{{ i18n "pages.remotePanels.onlineClients" }}', scopedSlots: { customRender: 'onlineClients' }, width: 110 },
           { title: '{{ i18n "pages.remotePanels.usage" }}', scopedSlots: { customRender: 'usage' }, width: 220 },
           { title: '{{ i18n "pages.remotePanels.speed" }}', scopedSlots: { customRender: 'speed' }, width: 240 },
           { title: 'Xray', scopedSlots: { customRender: 'xray' }, width: 100 },

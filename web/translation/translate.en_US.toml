@@ -199,6 +199,8 @@
 "test" = "Test login"
 "sync" = "Sync now"
 "syncAll" = "Sync all slaves"
+"totalClients" = "Total clients"
+"onlineClients" = "Online now"
 
 [pages.inbounds]
 "allTimeTraffic" = "All-time Traffic"
