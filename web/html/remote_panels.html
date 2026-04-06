@@ -44,6 +44,9 @@
                   <a-tag v-if="live[row.id] && live[row.id].ok" color="cyan">[[ live[row.id].xray ]]</a-tag>
                   <span v-else class="ant-typography-secondary">—</span>
                 </template>
+                <template slot="mergeSub" slot-scope="text, row">
+                  <a-tag :color="row.mergeSub ? 'blue' : 'default'">[[ row.mergeSub ? '{{ i18n "yes" }}' : '{{ i18n "no" }}' ]]</a-tag>
+                </template>
                 <template slot="autoSync" slot-scope="text, row">
                   <a-tag :color="row.autoSync ? 'green' : 'default'">[[ row.autoSync ? '{{ i18n "yes" }}' : '{{ i18n "no" }}' ]]</a-tag>
                 </template>
@@ -92,6 +95,17 @@
           <a-form-item :label="'{{ i18n "pages.remotePanels.skipTls" }}'">
             <a-switch v-model="form.skipTlsVerify"></a-switch>
           </a-form-item>
+          <a-form-item>
+            <span slot="label">{{ i18n "pages.remotePanels.mergeSub" }}
+              <a-tooltip placement="top">
+                <template slot="title">{{ i18n "pages.remotePanels.mergeSubHint" }}</template>
+                <a-icon type="question-circle" :style="{ marginLeft: '6px' }" />
+              </a-tooltip>
+            </span>
+            <a-switch v-model="form.mergeSub"></a-switch>
+          </a-form-item>
+          <a-form-item :label="'{{ i18n "pages.remotePanels.subPublicBase" }}'">
+            <a-input v-model="form.subPublicBase" :placeholder="'{{ i18n "pages.remotePanels.subPublicBasePh" }}'" /></a-form-item>
           <a-form-item :label="'{{ i18n "pages.remotePanels.autoSync" }}'">
             <a-switch v-model="form.autoSync"></a-switch>
           </a-form-item>
@@ -128,6 +142,8 @@
           username: '',
           password: '',
           skipTlsVerify: false,
+          mergeSub: false,
+          subPublicBase: '',
           autoSync: true,
           sort: 0,
         },
@@ -135,6 +151,7 @@
           { title: 'ID', dataIndex: 'id', width: 60 },
           { title: '{{ i18n "pages.remotePanels.remark" }}', scopedSlots: { customRender: 'remark' } },
           { title: 'URL', dataIndex: 'baseUrl', ellipsis: true },
+          { title: '{{ i18n "pages.remotePanels.mergeSub" }}', scopedSlots: { customRender: 'mergeSub' }, width: 100 },
           { title: '{{ i18n "pages.remotePanels.autoSync" }}', scopedSlots: { customRender: 'autoSync' }, width: 100 },
           { title: '{{ i18n "pages.remotePanels.usage" }}', scopedSlots: { customRender: 'usage' }, width: 220 },
           { title: '{{ i18n "pages.remotePanels.speed" }}', scopedSlots: { customRender: 'speed' }, width: 240 },
@@ -217,6 +234,8 @@
             username: row.username || '',
             password: '',
             skipTlsVerify: !!row.skipTlsVerify,
+            mergeSub: !!row.mergeSub,
+            subPublicBase: row.subPublicBase || '',
             autoSync: !!row.autoSync,
             sort: row.sort || 0,
           };
@@ -228,6 +247,8 @@
             username: '',
             password: '',
             skipTlsVerify: false,
+            mergeSub: false,
+            subPublicBase: '',
             autoSync: true,
             sort: 0,
           };

@@ -87,6 +87,8 @@ type RemotePanel struct {
 	Password       string `json:"password" form:"password"` // panel login password (same DB as admin UI)
 	SkipTLSVerify  bool   `json:"skipTlsVerify" form:"skipTlsVerify"`
 	AutoSync       bool   `json:"autoSync" form:"autoSync"` // push inbounds from master when they change
+	MergeSub       bool   `json:"mergeSub" form:"mergeSub"`                   // append slave plain sub to this master's subscription for same subId
+	SubPublicBase  string `json:"subPublicBase" form:"subPublicBase"`         // optional subscription URL prefix e.g. https://host:2096/sub/ ; empty => baseUrl + /sub/
 	Sort           int    `json:"sort" form:"sort" gorm:"default:0"`
 }
 

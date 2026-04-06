@@ -73,6 +73,7 @@ func (s *RemotePanelService) Create(userId int, p *model.RemotePanel) error {
 		return fmt.Errorf("baseUrl, slave username and password are required")
 	}
 	p.BaseURL = normalizeBaseURL(p.BaseURL)
+	p.SubPublicBase = strings.TrimSpace(p.SubPublicBase)
 	return database.GetDB().Create(p).Error
 }
 
@@ -89,6 +90,7 @@ func (s *RemotePanelService) Update(userId int, p *model.RemotePanel) error {
 	}
 	p.UserId = userId
 	p.BaseURL = normalizeBaseURL(p.BaseURL)
+	p.SubPublicBase = strings.TrimSpace(p.SubPublicBase)
 	p.Username = strings.TrimSpace(p.Username)
 	if p.Username == "" {
 		p.Username = old.Username

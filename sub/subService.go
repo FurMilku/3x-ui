@@ -53,7 +53,7 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 	}
 
 	if len(inbounds) == 0 {
-		merged := s.mergeRemoteSubscriptionLines(subId, nil)
+		merged := s.mergeRemoteSubscriptionLines(subId, nil, 0)
 		if len(merged) == 0 {
 			return nil, 0, traffic, groupName, common.NewError("No inbounds found with ", subId)
 		}
@@ -122,7 +122,11 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 			}
 		}
 	}
-	result = s.mergeRemoteSubscriptionLines(subId, result)
+	userId := 0
+	if len(inbounds) > 0 {
+		userId = inbounds[0].UserId
+	}
+	result = s.mergeRemoteSubscriptionLines(subId, result, userId)
 	return result, lastOnline, traffic, groupName, nil
 }
 
