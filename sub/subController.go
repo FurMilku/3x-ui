@@ -98,6 +98,25 @@ func (a *SUBController) subs(c *gin.Context) {
 			result += sub + "\n"
 		}
 
+		// Convert to Clash/Mihomo profile when requested by target query.
+		if strings.EqualFold(c.Query("target"), "clash") || strings.EqualFold(c.Query("target"), "mihomo") {
+			header := fmt.Sprintf("upload=%d; download=%d; total=%d; expire=%d", traffic.Up, traffic.Down, traffic.Total, traffic.ExpiryTime/1000)
+			profileUrl := a.subProfileUrl
+			if profileUrl == "" {
+				profileUrl = fmt.Sprintf("%s://%s%s", scheme, hostWithPort, c.Request.RequestURI)
+			}
+			a.ApplyCommonHeaders(c, header, a.updateInterval, a.subTitle, a.subSupportUrl, profileUrl, a.subAnnounce, a.subEnableRouting, a.subRoutingRules)
+
+			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, a.subTitle)
+			if convErr != nil || clashYAML == "" {
+				c.String(400, "Error!")
+				return
+			}
+			c.Header("Content-Type", "text/yaml; charset=utf-8")
+			c.String(200, clashYAML)
+			return
+		}
+
 		// If the request expects HTML (e.g., browser) or explicitly asked (?html=1 or ?view=html), render the info page here
 		accept := c.GetHeader("Accept")
 		if strings.Contains(strings.ToLower(accept), "text/html") || c.Query("html") == "1" || strings.EqualFold(c.Query("view"), "html") {
