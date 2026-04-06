@@ -79,15 +79,15 @@ type HistoryOfSeeders struct {
 
 // RemotePanel stores credentials and options for a slave 3x-ui panel (sync target + status polling).
 type RemotePanel struct {
-	Id             int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	UserId         int    `json:"userId" gorm:"index"` // panel admin user who owns this record
-	Remark         string `json:"remark"`
-	BaseURL        string `json:"baseUrl"` // e.g. https://host:2053/ or https://host/prefix/
-	Username       string `json:"username"`
-	Password       string `json:"password"` // panel login password (same DB as admin UI)
-	SkipTLSVerify  bool   `json:"skipTlsVerify"`
-	AutoSync       bool   `json:"autoSync"` // push inbounds from master when they change
-	Sort           int    `json:"sort" gorm:"default:0"`
+	Id             int    `json:"id" form:"id" gorm:"primaryKey;autoIncrement"`
+	UserId         int    `json:"userId" form:"userId" gorm:"index"` // panel admin user who owns this record
+	Remark         string `json:"remark" form:"remark"`
+	BaseURL        string `json:"baseUrl" form:"baseUrl"` // e.g. https://host:2053/ or https://host/prefix/
+	Username       string `json:"username" form:"username"`
+	Password       string `json:"password" form:"password"` // panel login password (same DB as admin UI)
+	SkipTLSVerify  bool   `json:"skipTlsVerify" form:"skipTlsVerify"`
+	AutoSync       bool   `json:"autoSync" form:"autoSync"` // push inbounds from master when they change
+	Sort           int    `json:"sort" form:"sort" gorm:"default:0"`
 }
 
 // GenXrayInboundConfig generates an Xray inbound configuration from the Inbound model.

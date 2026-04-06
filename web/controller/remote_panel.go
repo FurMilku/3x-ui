@@ -59,7 +59,7 @@ func (a *RemotePanelController) live(c *gin.Context) {
 func (a *RemotePanelController) add(c *gin.Context) {
 	user := session.GetLoginUser(c)
 	var p model.RemotePanel
-	if err := c.ShouldBindJSON(&p); err != nil {
+	if err := c.ShouldBind(&p); err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.login.toasts.invalidFormData"), err)
 		return
 	}
@@ -79,7 +79,7 @@ func (a *RemotePanelController) update(c *gin.Context) {
 		return
 	}
 	var p model.RemotePanel
-	if err := c.ShouldBindJSON(&p); err != nil {
+	if err := c.ShouldBind(&p); err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.login.toasts.invalidFormData"), err)
 		return
 	}
