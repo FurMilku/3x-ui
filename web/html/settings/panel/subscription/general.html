@@ -55,6 +55,14 @@
                     v-model="allSetting.subURI"></a-input>
             </template>
         </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>Clash Subscription URI</template>
+            <template #description>Optional. Used for Clash/Mihomo subscription links and QR on sub page.</template>
+            <template #control>
+                <a-input type="text" placeholder="(http|https)://domain[:port]/path/?target=clash"
+                    v-model="allSetting.subClashURI"></a-input>
+            </template>
+        </a-setting-list-item>
     </a-collapse-panel>
     <a-collapse-panel key="2" header='{{ i18n "pages.settings.information" }}'>
         <a-setting-list-item paddings="small">

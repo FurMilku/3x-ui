@@ -21,6 +21,7 @@ type SUBController struct {
 	subRoutingRules  string
 	subPath          string
 	subJsonPath      string
+	subClashURI      string
 	jsonEnabled      bool
 	subEncrypt       bool
 	updateInterval   string
@@ -34,6 +35,7 @@ func NewSUBController(
 	g *gin.RouterGroup,
 	subPath string,
 	jsonPath string,
+	clashURI string,
 	jsonEnabled bool,
 	encrypt bool,
 	showInfo bool,
@@ -60,6 +62,7 @@ func NewSUBController(
 		subRoutingRules:  subRoutingRules,
 		subPath:          subPath,
 		subJsonPath:      jsonPath,
+		subClashURI:      clashURI,
 		jsonEnabled:      jsonEnabled,
 		subEncrypt:       encrypt,
 		updateInterval:   update,
@@ -99,7 +102,7 @@ func (a *SUBController) subs(c *gin.Context) {
 		accept := c.GetHeader("Accept")
 		if strings.Contains(strings.ToLower(accept), "text/html") || c.Query("html") == "1" || strings.EqualFold(c.Query("view"), "html") {
 			// Build page data in service
-			subURL, subJsonURL := a.subService.BuildURLs(scheme, hostWithPort, a.subPath, a.subJsonPath, subId)
+			subURL, subJsonURL, subClashURL := a.subService.BuildURLs(scheme, hostWithPort, a.subPath, a.subJsonPath, a.subClashURI, subId)
 			if !a.jsonEnabled {
 				subJsonURL = ""
 			}
@@ -116,7 +119,7 @@ func (a *SUBController) subs(c *gin.Context) {
 				// Remove trailing slash if exists, add subId, then add trailing slash
 				basePathStr = strings.TrimRight(basePathStr, "/") + "/" + subId + "/"
 			}
-			page := a.subService.BuildPageData(subId, hostHeader, traffic, lastOnline, subs, subURL, subJsonURL, basePathStr)
+			page := a.subService.BuildPageData(subId, hostHeader, traffic, lastOnline, subs, subURL, subJsonURL, subClashURL, basePathStr)
 			c.HTML(200, "subpage.html", gin.H{
 				"title":        "subscription.title",
 				"cur_ver":      config.GetVersion(),
@@ -136,6 +139,7 @@ func (a *SUBController) subs(c *gin.Context) {
 				"totalByte":    page.TotalByte,
 				"subUrl":       page.SubUrl,
 				"subJsonUrl":   page.SubJsonUrl,
+				"subClashUrl":  page.SubClashUrl,
 				"result":       page.Result,
 			})
 			return

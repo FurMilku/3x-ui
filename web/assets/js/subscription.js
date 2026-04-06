@@ -9,6 +9,7 @@
     sId: el.getAttribute('data-sid') || '',
     subUrl: el.getAttribute('data-sub-url') || '',
     subJsonUrl: el.getAttribute('data-subjson-url') || '',
+    subClashUrl: el.getAttribute('data-subclash-url') || '',
     download: el.getAttribute('data-download') || '',
     upload: el.getAttribute('data-upload') || '',
     used: el.getAttribute('data-used') || '',
@@ -99,11 +100,17 @@
       const tpl = document.getElementById('subscription-data');
       const sj = tpl ? tpl.getAttribute('data-subjson-url') : '';
       if (sj) this.app.subJsonUrl = sj;
+      const sc = tpl ? tpl.getAttribute('data-subclash-url') : '';
+      if (sc) this.app.subClashUrl = sc;
       drawQR(this.app.subUrl);
       try {
         const elJson = document.getElementById('qrcode-subjson');
         if (elJson && this.app.subJsonUrl) {
           new QRious({ element: elJson, value: this.app.subJsonUrl, size: 220 });
+        }
+        const elClash = document.getElementById('qrcode-subclash');
+        if (elClash && this.app.subClashUrl) {
+          new QRious({ element: elClash, value: this.app.subClashUrl, size: 220 });
         }
       } catch (e) { /* ignore */ }
       this._onResize = () => { this.viewportWidth = window.innerWidth; };
@@ -118,6 +125,17 @@
       },
       isUnlimited() {
         return !this.app.totalByte;
+      },
+      qrCount() {
+        let count = 1;
+        if (this.app.subJsonUrl) count += 1;
+        if (this.app.subClashUrl) count += 1;
+        return count;
+      },
+      qrSpan() {
+        if (this.qrCount >= 3) return 8;
+        if (this.qrCount === 2) return 12;
+        return 24;
       },
       isActive() {
         const now = Date.now();

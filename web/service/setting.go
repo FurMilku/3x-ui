@@ -69,6 +69,7 @@ var defaultValueMap = map[string]string{
 	"subEncrypt":                  "true",
 	"subShowInfo":                 "true",
 	"subURI":                      "",
+	"subClashURI":                 "",
 	"subJsonPath":                 "/json/",
 	"subJsonURI":                  "",
 	"subJsonFragment":             "",
@@ -551,6 +552,10 @@ func (s *SettingService) GetSubURI() (string, error) {
 	return s.getString("subURI")
 }
 
+func (s *SettingService) GetSubClashURI() (string, error) {
+	return s.getString("subClashURI")
+}
+
 func (s *SettingService) GetSubJsonURI() (string, error) {
 	return s.getString("subJsonURI")
 }
@@ -753,6 +758,7 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 		"subJsonEnable": func() (any, error) { return s.GetSubJsonEnable() },
 		"subTitle":      func() (any, error) { return s.GetSubTitle() },
 		"subURI":        func() (any, error) { return s.GetSubURI() },
+		"subClashURI":   func() (any, error) { return s.GetSubClashURI() },
 		"subJsonURI":    func() (any, error) { return s.GetSubJsonURI() },
 		"remarkModel":   func() (any, error) { return s.GetRemarkModel() },
 		"datepicker":    func() (any, error) { return s.GetDatepicker() },
@@ -804,6 +810,9 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 		}
 		if subEnable && result["subURI"].(string) == "" {
 			result["subURI"] = subURI + subPath
+		}
+		if subEnable && result["subClashURI"].(string) == "" {
+			result["subClashURI"] = subURI + subPath + "?target=clash"
 		}
 		if result["subTitle"].(string) == "" {
 			result["subTitle"] = subTitle

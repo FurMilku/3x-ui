@@ -47,6 +47,7 @@ class AllSetting {
         this.subEncrypt = true;
         this.subShowInfo = true;
         this.subURI = "";
+        this.subClashURI = "";
         this.subJsonURI = "";
         this.subJsonFragment = "";
         this.subJsonNoises = "";

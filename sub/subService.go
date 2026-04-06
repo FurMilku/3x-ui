@@ -1031,6 +1031,7 @@ type PageData struct {
 	TotalByte    int64
 	SubUrl       string
 	SubJsonUrl   string
+	SubClashUrl  string
 	Result       []string
 }
 
@@ -1080,10 +1081,10 @@ func (s *SubService) ResolveRequest(c *gin.Context) (scheme string, host string,
 
 // BuildURLs constructs absolute subscription and JSON subscription URLs for a given subscription ID.
 // It prioritizes configured URIs, then individual settings, and finally falls back to request-derived components.
-func (s *SubService) BuildURLs(scheme, hostWithPort, subPath, subJsonPath, subId string) (subURL, subJsonURL string) {
+func (s *SubService) BuildURLs(scheme, hostWithPort, subPath, subJsonPath, subClashURI, subId string) (subURL, subJsonURL, subClashURL string) {
 	// Input validation
 	if subId == "" {
-		return "", ""
+		return "", "", ""
 	}
 
 	// Get configured URIs first (highest priority)
@@ -1102,7 +1103,16 @@ func (s *SubService) BuildURLs(scheme, hostWithPort, subPath, subJsonPath, subId
 	// Build JSON subscription URL
 	subJsonURL = s.buildSingleURL(configuredSubJsonURI, baseScheme, baseHostWithPort, subJsonPath, subId)
 
-	return subURL, subJsonURL
+	// Build Clash subscription URL:
+	// - custom URI has priority
+	// - otherwise fallback to standard sub URL with target=clash
+	if subClashURI != "" {
+		subClashURL = s.buildSingleURL(subClashURI, baseScheme, baseHostWithPort, "", subId)
+	} else if subURL != "" {
+		subClashURL = subURL + "?target=clash"
+	}
+
+	return subURL, subJsonURL, subClashURL
 }
 
 // getBaseSchemeAndHost determines the base scheme and host from settings or falls back to request values
@@ -1134,6 +1144,9 @@ func (s *SubService) buildSingleURL(configuredURI, baseScheme, baseHostWithPort,
 	if configuredURI != "" {
 		return s.joinPathWithID(configuredURI, subId)
 	}
+	if basePath == "" {
+		return ""
+	}
 
 	baseURL := fmt.Sprintf("%s://%s", baseScheme, baseHostWithPort)
 	return s.joinPathWithID(baseURL+basePath, subId)
@@ -1141,6 +1154,17 @@ func (s *SubService) buildSingleURL(configuredURI, baseScheme, baseHostWithPort,
 
 // joinPathWithID safely joins a base path with a subscription ID
 func (s *SubService) joinPathWithID(basePath, subId string) string {
+	if parsed, err := url.Parse(basePath); err == nil {
+		path := parsed.Path
+		if path == "" {
+			path = "/"
+		}
+		if !strings.HasSuffix(path, "/") {
+			path += "/"
+		}
+		parsed.Path = path + subId
+		return parsed.String()
+	}
 	if strings.HasSuffix(basePath, "/") {
 		return basePath + subId
 	}
@@ -1149,7 +1173,7 @@ func (s *SubService) joinPathWithID(basePath, subId string) string {
 
 // BuildPageData parses header and prepares the template view model.
 // BuildPageData constructs page data for rendering the subscription information page.
-func (s *SubService) BuildPageData(subId string, hostHeader string, traffic xray.ClientTraffic, lastOnline int64, subs []string, subURL, subJsonURL string, basePath string) PageData {
+func (s *SubService) BuildPageData(subId string, hostHeader string, traffic xray.ClientTraffic, lastOnline int64, subs []string, subURL, subJsonURL, subClashURL string, basePath string) PageData {
 	download := common.FormatTraffic(traffic.Down)
 	upload := common.FormatTraffic(traffic.Up)
 	total := "∞"
@@ -1183,6 +1207,7 @@ func (s *SubService) BuildPageData(subId string, hostHeader string, traffic xray
 		TotalByte:    traffic.Total,
 		SubUrl:       subURL,
 		SubJsonUrl:   subJsonURL,
+		SubClashUrl:  subClashURL,
 		Result:       subs,
 	}
 }
