@@ -60,7 +60,7 @@ func (a *RemotePanelController) add(c *gin.Context) {
 	user := session.GetLoginUser(c)
 	var p model.RemotePanel
 	if err := c.ShouldBindJSON(&p); err != nil {
-		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
+		jsonMsg(c, I18nWeb(c, "pages.login.toasts.invalidFormData"), err)
 		return
 	}
 	if err := a.svc.Create(user.Id, &p); err != nil {
@@ -80,7 +80,7 @@ func (a *RemotePanelController) update(c *gin.Context) {
 	}
 	var p model.RemotePanel
 	if err := c.ShouldBindJSON(&p); err != nil {
-		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.inboundUpdateSuccess"), err)
+		jsonMsg(c, I18nWeb(c, "pages.login.toasts.invalidFormData"), err)
 		return
 	}
 	p.Id = id
