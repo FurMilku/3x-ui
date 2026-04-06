@@ -19,7 +19,7 @@ func newClashConverter() *clashConverter {
 	return &clashConverter{}
 }
 
-func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, subTitle string) (string, error) {
+func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, subTitle string, rulesTemplate string) (string, error) {
 	_ = traffic
 	proxies := make([]map[string]any, 0, len(links))
 	proxyNames := make([]string, 0, len(links))
@@ -92,21 +92,7 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 		},
 		"proxies":             proxies,
 		"proxy-groups":        groups,
-		"rules": []string{
-			"DOMAIN,injections.adguard.org,DIRECT",
-			"DOMAIN,local.adguard.org,DIRECT",
-			"DOMAIN-SUFFIX,local,DIRECT",
-			"IP-CIDR,127.0.0.0/8,DIRECT",
-			"IP-CIDR,10.0.0.0/8,DIRECT",
-			"IP-CIDR,172.16.0.0/12,DIRECT",
-			"IP-CIDR,192.168.0.0/16,DIRECT",
-			"IP-CIDR,100.64.0.0/10,DIRECT",
-			"IP-CIDR,224.0.0.0/4,DIRECT",
-			"IP-CIDR6,fe80::/10,DIRECT",
-			"DOMAIN-SUFFIX,cn,DIRECT",
-			"GEOIP,CN,DIRECT",
-			"MATCH," + groupName,
-		},
+		"rules": c.resolveRulesTemplate(rulesTemplate, groupName),
 	}
 
 	out, err := yaml.Marshal(cfg)
@@ -114,6 +100,72 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 		return "", err
 	}
 	return string(out), nil
+}
+
+func (c *clashConverter) resolveRulesTemplate(template string, groupName string) []string {
+	defaultRules := []string{
+		"DOMAIN,injections.adguard.org,DIRECT",
+		"DOMAIN,local.adguard.org,DIRECT",
+		"DOMAIN-SUFFIX,local,DIRECT",
+		"IP-CIDR,127.0.0.0/8,DIRECT",
+		"IP-CIDR,10.0.0.0/8,DIRECT",
+		"IP-CIDR,172.16.0.0/12,DIRECT",
+		"IP-CIDR,192.168.0.0/16,DIRECT",
+		"IP-CIDR,100.64.0.0/10,DIRECT",
+		"IP-CIDR,224.0.0.0/4,DIRECT",
+		"IP-CIDR6,fe80::/10,DIRECT",
+		"DOMAIN-SUFFIX,cn,DIRECT",
+		"GEOIP,CN,DIRECT",
+		"MATCH," + groupName,
+	}
+
+	tpl := strings.TrimSpace(template)
+	if tpl == "" {
+		return defaultRules
+	}
+
+	// Simple placeholder substitution. Users can provide multiline rules.
+	// Supported placeholders:
+	// - ${PROXY_GROUP} / ${GROUP} / {{PROXY_GROUP}}
+	tpl = strings.ReplaceAll(tpl, "${PROXY_GROUP}", groupName)
+	tpl = strings.ReplaceAll(tpl, "${GROUP}", groupName)
+	tpl = strings.ReplaceAll(tpl, "{{PROXY_GROUP}}", groupName)
+	tpl = strings.ReplaceAll(tpl, "{{GROUP}}", groupName)
+
+	tpl = strings.ReplaceAll(tpl, "\r\n", "\n")
+
+	lines := strings.Split(tpl, "\n")
+	out := make([]string, 0, len(lines)+1)
+	hasMatch := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(line), "rules:") {
+			continue
+		}
+		// allow yaml-style bullet "- xxx"
+		if strings.HasPrefix(line, "-") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "-"))
+		}
+		// allow wrapped quotes
+		line = strings.TrimSpace(strings.TrimPrefix(line, "'"))
+		line = strings.TrimSpace(strings.TrimSuffix(line, "'"))
+		line = strings.TrimSpace(strings.TrimPrefix(line, "\""))
+		line = strings.TrimSpace(strings.TrimSuffix(line, "\""))
+
+		if strings.HasPrefix(line, "MATCH,") {
+			hasMatch = true
+		}
+		out = append(out, line)
+	}
+
+	if !hasMatch {
+		out = append(out, "MATCH,"+groupName)
+	}
+	return out
 }
 
 func (c *clashConverter) parseProxy(link string) (map[string]any, error) {

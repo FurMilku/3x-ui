@@ -22,6 +22,7 @@ type SUBController struct {
 	subPath          string
 	subJsonPath      string
 	subClashURI      string
+	clashRules       string
 	jsonEnabled      bool
 	subEncrypt       bool
 	updateInterval   string
@@ -36,6 +37,7 @@ func NewSUBController(
 	subPath string,
 	jsonPath string,
 	clashURI string,
+	clashRules string,
 	jsonEnabled bool,
 	encrypt bool,
 	showInfo bool,
@@ -63,6 +65,7 @@ func NewSUBController(
 		subPath:          subPath,
 		subJsonPath:      jsonPath,
 		subClashURI:      clashURI,
+		clashRules:       clashRules,
 		jsonEnabled:      jsonEnabled,
 		subEncrypt:       encrypt,
 		updateInterval:   update,
@@ -98,10 +101,10 @@ func (a *SUBController) subs(c *gin.Context) {
 			result += sub + "\n"
 		}
 
-		// Convert to Clash/Mihomo profile:
-		// - explicit query target=clash|mihomo
-		// - or auto-detected by User-Agent, so existing sub links can be imported directly.
-		if a.shouldReturnClash(c) {
+		// Convert to Clash/Mihomo profile only when explicitly requested.
+		// This keeps the normal subscription (subUrl) and clash subscription (subClashUrl) separated.
+		target := strings.ToLower(strings.TrimSpace(c.Query("target")))
+		if target == "clash" || target == "mihomo" {
 			header := fmt.Sprintf("upload=%d; download=%d; total=%d; expire=%d", traffic.Up, traffic.Down, traffic.Total, traffic.ExpiryTime/1000)
 			profileUrl := a.subProfileUrl
 			if profileUrl == "" {
@@ -109,7 +112,7 @@ func (a *SUBController) subs(c *gin.Context) {
 			}
 			a.ApplyCommonHeaders(c, header, a.updateInterval, a.subTitle, a.subSupportUrl, profileUrl, a.subAnnounce, a.subEnableRouting, a.subRoutingRules)
 
-			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, a.subTitle)
+			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, a.subTitle, a.clashRules)
 			if convErr != nil || clashYAML == "" {
 				c.String(400, "Error!")
 				return
@@ -180,25 +183,6 @@ func (a *SUBController) subs(c *gin.Context) {
 			c.String(200, result)
 		}
 	}
-}
-
-func (a *SUBController) shouldReturnClash(c *gin.Context) bool {
-	target := strings.ToLower(strings.TrimSpace(c.Query("target")))
-	if target == "clash" || target == "mihomo" {
-		return true
-	}
-
-	ua := strings.ToLower(c.GetHeader("User-Agent"))
-	if ua == "" {
-		return false
-	}
-
-	// Match common clients using Clash/Mihomo cores.
-	return strings.Contains(ua, "clash") ||
-		strings.Contains(ua, "mihomo") ||
-		strings.Contains(ua, "metacubex") ||
-		strings.Contains(ua, "clash-verge") ||
-		strings.Contains(ua, "clash-meta")
 }
 
 // subJsons handles HTTP requests for JSON subscription configurations.

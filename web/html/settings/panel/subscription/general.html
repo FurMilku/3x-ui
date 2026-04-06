@@ -57,9 +57,9 @@
         </a-setting-list-item>
         <a-setting-list-item paddings="small">
             <template #title>Clash Subscription URI</template>
-            <template #description>Optional. Leave empty to use the same URI as normal subscription.</template>
+            <template #description>Optional. Used for Clash/Mihomo subscription links and QR on sub page.</template>
             <template #control>
-                <a-input type="text" placeholder="(http|https)://domain[:port]/path/"
+                <a-input type="text" placeholder="(http|https)://domain[:port]/path/?target=clash"
                     v-model="allSetting.subClashURI"></a-input>
             </template>
         </a-setting-list-item>
@@ -121,6 +121,14 @@
             <template #description>{{ i18n "pages.settings.subRoutingRulesDesc"}}</template>
             <template #control>
                 <a-textarea v-model="allSetting.subRoutingRules" placeholder="happ://routing/add/..."></a-textarea>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
+            <template #title>Clash Rules Template</template>
+            <template #description>用于 Clash/Mihomo 订阅的 `rules`。支持占位符 `${PROXY_GROUP}`（主组名）。</template>
+            <template #control>
+                <a-textarea v-model="allSetting.subClashRules"
+                    placeholder="DOMAIN,injections.adguard.org,DIRECT&#10;MATCH,${PROXY_GROUP}"></a-textarea>
             </template>
         </a-setting-list-item>
     </a-collapse-panel>

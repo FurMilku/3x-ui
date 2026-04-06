@@ -151,6 +151,10 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	if err != nil {
 		SubClashURI = ""
 	}
+	SubClashRules, err := s.settingService.GetSubClashRules()
+	if err != nil {
+		SubClashRules = ""
+	}
 
 	SubTitle, err := s.settingService.GetSubTitle()
 	if err != nil {
@@ -259,7 +263,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	g := engine.Group("/")
 
 	s.sub = NewSUBController(
-		g, LinksPath, JsonPath, SubClashURI, subJsonEnable, Encrypt, ShowInfo, RemarkModel, SubUpdates,
+		g, LinksPath, JsonPath, SubClashURI, SubClashRules, subJsonEnable, Encrypt, ShowInfo, RemarkModel, SubUpdates,
 		SubJsonFragment, SubJsonNoises, SubJsonMux, SubJsonRules, SubTitle, SubSupportUrl,
 		SubProfileUrl, SubAnnounce, SubEnableRouting, SubRoutingRules)
 
