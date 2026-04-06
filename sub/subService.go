@@ -39,8 +39,8 @@ func NewSubService(showInfo bool, remarkModel string) *SubService {
 }
 
 // GetSubs retrieves subscription links for a given subscription ID and host.
-// It also returns a preferred Clash group name derived from inbound remark.
-func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.ClientTraffic, string, error) {
+// It also returns clashDisambigTags (same length as links; non-empty marks merged slave panel remark for Clash name disambiguation) and a preferred Clash group name from inbound remark.
+func (s *SubService) GetSubs(subId string, host string) ([]string, []string, int64, xray.ClientTraffic, string, error) {
 	s.address = host
 	var result []string
 	var traffic xray.ClientTraffic
@@ -49,19 +49,19 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 	var clientTraffics []xray.ClientTraffic
 	inbounds, err := s.getInboundsBySubId(subId)
 	if err != nil {
-		return nil, 0, traffic, groupName, err
+		return nil, nil, 0, traffic, groupName, err
 	}
 
 	if len(inbounds) == 0 {
-		merged := s.mergeRemoteSubscriptionLines(subId, nil, 0)
+		merged, mergedTags := s.mergeRemoteSubscriptionLines(subId, nil, 0)
 		if len(merged) == 0 {
-			return nil, 0, traffic, groupName, common.NewError("No inbounds found with ", subId)
+			return nil, nil, 0, traffic, groupName, common.NewError("No inbounds found with ", subId)
 		}
 		s.datepicker, err = s.settingService.GetDatepicker()
 		if err != nil || s.datepicker == "" {
 			s.datepicker = "gregorian"
 		}
-		return merged, 0, traffic, groupName, nil
+		return merged, mergedTags, 0, traffic, groupName, nil
 	}
 
 	s.datepicker, err = s.settingService.GetDatepicker()
@@ -126,8 +126,8 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 	if len(inbounds) > 0 {
 		userId = inbounds[0].UserId
 	}
-	result = s.mergeRemoteSubscriptionLines(subId, result, userId)
-	return result, lastOnline, traffic, groupName, nil
+	result, clashTags := s.mergeRemoteSubscriptionLines(subId, result, userId)
+	return result, clashTags, lastOnline, traffic, groupName, nil
 }
 
 func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) {

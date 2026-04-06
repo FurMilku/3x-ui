@@ -19,13 +19,17 @@ func newClashConverter() *clashConverter {
 	return &clashConverter{}
 }
 
-func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, subTitle string, profile string) (string, error) {
+func (c *clashConverter) BuildYAML(links []string, clashDisambigTags []string, traffic xray.ClientTraffic, subTitle string, profile string) (string, error) {
 	_ = traffic
 	proxies := make([]map[string]any, 0, len(links))
 	proxyNames := make([]string, 0, len(links))
-	nameCount := map[string]int{}
-	for _, raw := range links {
+	usedNames := map[string]struct{}{}
+	for i, raw := range links {
 		link := strings.TrimSpace(raw)
+		tag := ""
+		if i < len(clashDisambigTags) {
+			tag = clashDisambigTags[i]
+		}
 		if link == "" {
 			continue
 		}
@@ -38,7 +42,7 @@ func (c *clashConverter) BuildYAML(links []string, traffic xray.ClientTraffic, s
 		if name == "" {
 			name = fmt.Sprintf("node-%d", len(proxies)+1)
 		}
-		name = c.uniqueName(name, nameCount)
+		name = disambiguateClashProxyName(name, tag, usedNames)
 		p["name"] = name
 
 		proxies = append(proxies, p)
@@ -517,17 +521,50 @@ func (c *clashConverter) parseShadowsocks(link string) (map[string]any, error) {
 	return proxy, nil
 }
 
-func (c *clashConverter) uniqueName(name string, counter map[string]int) string {
+func clashSanitizeTag(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\t", " ")
+	return strings.TrimSpace(s)
+}
+
+// disambiguateClashProxyName assigns a unique Clash proxy name. When clashTag is non-empty (e.g. remote panel remark),
+// duplicate base names use "base-tag" instead of "base-2", "base-3".
+func disambiguateClashProxyName(name string, clashTag string, used map[string]struct{}) string {
 	base := strings.TrimSpace(name)
 	if base == "" {
 		base = "node"
 	}
-	if _, ok := counter[base]; !ok {
-		counter[base] = 1
+	if _, taken := used[base]; !taken {
+		used[base] = struct{}{}
 		return base
 	}
-	counter[base]++
-	return fmt.Sprintf("%s-%d", base, counter[base])
+	tag := clashSanitizeTag(clashTag)
+	if tag != "" {
+		candidate := base + "-" + tag
+		if _, taken := used[candidate]; !taken {
+			used[candidate] = struct{}{}
+			return candidate
+		}
+		for i := 2; ; i++ {
+			alt := fmt.Sprintf("%s-%s-%d", base, tag, i)
+			if _, taken := used[alt]; !taken {
+				used[alt] = struct{}{}
+				return alt
+			}
+		}
+	}
+	for i := 2; ; i++ {
+		alt := fmt.Sprintf("%s-%d", base, i)
+		if _, taken := used[alt]; !taken {
+			used[alt] = struct{}{}
+			return alt
+		}
+	}
 }
 
 func splitCSV(v string) []string {

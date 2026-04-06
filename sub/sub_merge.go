@@ -18,9 +18,11 @@ import (
 const mergeUserAgent = "3x-ui-subscription-merge/1.0"
 
 // mergeRemoteSubscriptionLines merges manual URLs (settings), then slave panels flagged MergeSub, after local lines.
-func (s *SubService) mergeRemoteSubscriptionLines(subId string, local []string, userId int) []string {
+// clashDisambigTags is parallel to the returned link list: non-empty entries are remote-panel remarks used for Clash proxy name disambiguation instead of numeric suffixes.
+func (s *SubService) mergeRemoteSubscriptionLines(subId string, local []string, userId int) ([]string, []string) {
 	seen := make(map[string]struct{})
 	out := make([]string, 0, len(local)+16)
+	tags := make([]string, 0, len(local)+16)
 	for _, line := range local {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -28,6 +30,7 @@ func (s *SubService) mergeRemoteSubscriptionLines(subId string, local []string, 
 		}
 		seen[line] = struct{}{}
 		out = append(out, line)
+		tags = append(tags, "")
 	}
 
 	raw, _ := s.settingService.GetSubMergeURLs()
@@ -42,16 +45,16 @@ func (s *SubService) mergeRemoteSubscriptionLines(subId string, local []string, 
 			logger.Warning("SubService merge: fetch failed:", fetchURL, err)
 			continue
 		}
-		out = appendUniqueMergeLines(seen, out, remote)
+		out, tags = appendUniqueMergeLinesWithTag(seen, out, tags, remote, "")
 	}
 
 	if userId > 0 {
-		out = s.appendMergedFromRemotePanels(userId, subId, seen, out)
+		out, tags = s.appendMergedFromRemotePanels(userId, subId, seen, out, tags)
 	}
-	return out
+	return out, tags
 }
 
-func appendUniqueMergeLines(seen map[string]struct{}, out []string, remote []string) []string {
+func appendUniqueMergeLinesWithTag(seen map[string]struct{}, out []string, tags []string, remote []string, clashTag string) ([]string, []string) {
 	for _, r := range remote {
 		r = strings.TrimSpace(r)
 		if r == "" {
@@ -62,16 +65,17 @@ func appendUniqueMergeLines(seen map[string]struct{}, out []string, remote []str
 		}
 		seen[r] = struct{}{}
 		out = append(out, r)
+		tags = append(tags, clashTag)
 	}
-	return out
+	return out, tags
 }
 
-func (s *SubService) appendMergedFromRemotePanels(userId int, subId string, seen map[string]struct{}, out []string) []string {
+func (s *SubService) appendMergedFromRemotePanels(userId int, subId string, seen map[string]struct{}, out []string, tags []string) ([]string, []string) {
 	db := database.GetDB()
 	var panels []model.RemotePanel
 	err := db.Where("user_id = ? AND merge_sub = ?", userId, true).Order("sort asc, id asc").Find(&panels).Error
 	if err != nil || len(panels) == 0 {
-		return out
+		return out, tags
 	}
 	for i := range panels {
 		p := &panels[i]
@@ -84,9 +88,10 @@ func (s *SubService) appendMergedFromRemotePanels(userId int, subId string, seen
 			logger.Warning("SubService merge remote panel:", p.Id, u, err)
 			continue
 		}
-		out = appendUniqueMergeLines(seen, out, remote)
+		panelTag := strings.TrimSpace(p.Remark)
+		out, tags = appendUniqueMergeLinesWithTag(seen, out, tags, remote, panelTag)
 	}
-	return out
+	return out, tags
 }
 
 func remotePanelSubscriptionURL(p *model.RemotePanel, subId string) string {

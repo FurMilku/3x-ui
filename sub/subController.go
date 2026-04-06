@@ -89,7 +89,7 @@ func (a *SUBController) initRouter(g *gin.RouterGroup) {
 func (a *SUBController) subs(c *gin.Context) {
 	subId := c.Param("subid")
 	scheme, host, hostWithPort, hostHeader := a.subService.ResolveRequest(c)
-	subs, lastOnline, traffic, clashGroupName, err := a.subService.GetSubs(subId, host)
+	subs, clashDisambigTags, lastOnline, traffic, clashGroupName, err := a.subService.GetSubs(subId, host)
 	if err != nil || len(subs) == 0 {
 		c.String(400, "Error!")
 	} else {
@@ -116,7 +116,7 @@ func (a *SUBController) subs(c *gin.Context) {
 			if strings.TrimSpace(clashGroupName) == "" {
 				clashGroupName = a.subTitle
 			}
-			clashYAML, convErr := newClashConverter().BuildYAML(subs, traffic, clashGroupName, clashProfile)
+			clashYAML, convErr := newClashConverter().BuildYAML(subs, clashDisambigTags, traffic, clashGroupName, clashProfile)
 			if convErr != nil || clashYAML == "" {
 				c.String(400, "Error!")
 				return
