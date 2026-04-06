@@ -30,6 +30,14 @@
           </tr-qr-bg-inner>
         </tr-qr-bg>
       </tr-qr-box>
+      <tr-qr-box class="qr-box" v-if="app.subSettings.subClashURI">
+        <a-tag color="purple" class="qr-tag"><span>Clash</span></a-tag>
+        <tr-qr-bg class="qr-bg-sub">
+          <tr-qr-bg-inner class="qr-bg-sub-inner">
+            <canvas @click="copy(genSubClashLink(qrModal.client.subId))" id="qrCode-subClash" class="qr-cv"></canvas>
+          </tr-qr-bg-inner>
+        </tr-qr-bg>
+      </tr-qr-box>
       <tr-qr-box class="qr-box" v-if="app.subSettings.subJsonEnable">
         <a-tag color="purple" class="qr-tag"><span>{{ i18n "pages.settings.subSettings"}} Json</span></a-tag>
         <tr-qr-bg class="qr-bg-sub">
@@ -233,6 +241,9 @@
       genSubLink(subID) {
         return app.subSettings.subURI + subID;
       },
+      genSubClashLink(subID) {
+        return app.subSettings.subClashURI + subID;
+      },
       genSubJsonLink(subID) {
         return app.subSettings.subJsonURI + subID;
       },
@@ -262,6 +273,9 @@
       if (qrModal.client && qrModal.client.subId) {
         qrModal.subId = qrModal.client.subId;
         this.setQrCode("qrCode-sub", this.genSubLink(qrModal.subId));
+        if (app.subSettings.subClashURI) {
+          this.setQrCode("qrCode-subClash", this.genSubClashLink(qrModal.subId));
+        }
         if (app.subSettings.subJsonEnable) {
           this.setQrCode("qrCode-subJson", this.genSubJsonLink(qrModal.subId));
         }

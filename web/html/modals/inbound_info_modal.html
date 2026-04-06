@@ -365,6 +365,18 @@
               <a :href="[[ infoModal.subJsonLink ]]" target="_blank">[[
                 infoModal.subJsonLink ]]</a>
             </tr-info-row>
+            <tr-info-row class="tr-info-row"
+              v-if="infoModal.subClashLink">
+              <tr-info-title class="tr-info-title">
+                <a-tag color="purple">Clash Link</a-tag>
+                <a-tooltip title='{{ i18n "copy" }}'>
+                  <a-button size="small" icon="snippets"
+                    @click="copy(infoModal.subClashLink)"></a-button>
+                </a-tooltip>
+              </tr-info-title>
+              <a :href="[[ infoModal.subClashLink ]]" target="_blank">[[
+                infoModal.subClashLink ]]</a>
+            </tr-info-row>
           </template>
           <template v-if="app.tgBotEnable && infoModal.clientSettings.tgId">
             <a-divider>Telegram ChatID</a-divider>
@@ -641,6 +653,7 @@
     index: null,
     isExpired: false,
     subLink: '',
+    subClashLink: '',
     subJsonLink: '',
     clientIps: '',
     clientIpsArray: [],
@@ -675,6 +688,7 @@
       if (this.clientSettings) {
         if (this.clientSettings.subId) {
           this.subLink = this.genSubLink(this.clientSettings.subId);
+          this.subClashLink = app.subSettings.subClashURI ? this.genSubClashLink(this.clientSettings.subId) : '';
           this.subJsonLink = app.subSettings.subJsonEnable ? this.genSubJsonLink(this.clientSettings.subId) : '';
         }
       }
@@ -685,6 +699,9 @@
     },
     genSubLink(subID) {
       return app.subSettings.subURI + subID;
+    },
+    genSubClashLink(subID) {
+      return app.subSettings.subClashURI + subID;
     },
     genSubJsonLink(subID) {
       return app.subSettings.subJsonURI + subID;

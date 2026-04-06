@@ -732,6 +732,7 @@
         enable: false,
         subTitle: '',
         subURI: '',
+        subClashURI: '',
         subJsonURI: '',
         subJsonEnable: false,
       },
@@ -789,6 +790,7 @@
             enable: subEnable,
             subTitle: subTitle,
             subURI: subURI,
+            subClashURI: subClashURI || '',
             subJsonURI: subJsonURI,
             subJsonEnable: subJsonEnable,
           };
@@ -1481,6 +1483,9 @@
           clients.forEach(c => {
             if (c.subId && c.subId.length > 0) {
               subLinks.push(this.subSettings.subURI + c.subId)
+              if (this.subSettings.subClashURI) {
+                subLinks.push(this.subSettings.subClashURI + c.subId)
+              }
             }
           })
         }
@@ -1508,6 +1513,9 @@
             clients.forEach(c => {
               if (c.subId && c.subId.length > 0) {
                 subLinks.push(this.subSettings.subURI + c.subId)
+                if (this.subSettings.subClashURI) {
+                  subLinks.push(this.subSettings.subClashURI + c.subId)
+                }
               }
             })
           }
