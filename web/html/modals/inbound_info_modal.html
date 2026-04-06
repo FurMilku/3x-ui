@@ -698,13 +698,13 @@
       infoModal.visible = false;
     },
     genSubLink(subID) {
-      return app.subSettings.subURI + subID;
+      return app.buildSubURL(app.subSettings.subURI, subID);
     },
     genSubClashLink(subID) {
-      return app.subSettings.subClashURI + subID;
+      return app.buildSubURL(app.subSettings.subClashURI, subID);
     },
     genSubJsonLink(subID) {
-      return app.subSettings.subJsonURI + subID;
+      return app.buildSubURL(app.subSettings.subJsonURI, subID);
     }
   };
   const infoModalApp = new Vue({

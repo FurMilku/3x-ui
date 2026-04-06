@@ -61,14 +61,14 @@
             <span>Links</span>
         </template>
         <a-space direction="vertical" style="width: 100%;">
-            <a-input :value="app.subSettings.subURI + client.subId" readonly>
-                <a-button slot="addonAfter" icon="copy" @click="ClipboardManager.copyText(app.subSettings.subURI + client.subId)"></a-button>
+            <a-input :value="app.buildSubURL(app.subSettings.subURI, client.subId)" readonly>
+                <a-button slot="addonAfter" icon="copy" @click="ClipboardManager.copyText(app.buildSubURL(app.subSettings.subURI, client.subId))"></a-button>
             </a-input>
-            <a-input v-if="app.subSettings.subClashURI" :value="app.subSettings.subClashURI + client.subId" readonly>
-                <a-button slot="addonAfter" icon="copy" @click="ClipboardManager.copyText(app.subSettings.subClashURI + client.subId)"></a-button>
+            <a-input v-if="app.subSettings.subClashURI" :value="app.buildSubURL(app.subSettings.subClashURI, client.subId)" readonly>
+                <a-button slot="addonAfter" icon="copy" @click="ClipboardManager.copyText(app.buildSubURL(app.subSettings.subClashURI, client.subId))"></a-button>
             </a-input>
-            <a-input v-if="app.subSettings.subJsonEnable" :value="app.subSettings.subJsonURI + client.subId" readonly>
-                <a-button slot="addonAfter" icon="copy" @click="ClipboardManager.copyText(app.subSettings.subJsonURI + client.subId)"></a-button>
+            <a-input v-if="app.subSettings.subJsonEnable" :value="app.buildSubURL(app.subSettings.subJsonURI, client.subId)" readonly>
+                <a-button slot="addonAfter" icon="copy" @click="ClipboardManager.copyText(app.buildSubURL(app.subSettings.subJsonURI, client.subId))"></a-button>
             </a-input>
         </a-space>
     </a-form-item>

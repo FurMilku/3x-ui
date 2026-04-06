@@ -744,6 +744,17 @@
       pageSize: 0,
     },
     methods: {
+      buildSubURL(baseURL, subId) {
+        if (!baseURL || !subId) return '';
+        const hashIndex = baseURL.indexOf('#');
+        const withNoHash = hashIndex >= 0 ? baseURL.substring(0, hashIndex) : baseURL;
+        const hash = hashIndex >= 0 ? baseURL.substring(hashIndex) : '';
+        const queryIndex = withNoHash.indexOf('?');
+        const basePath = queryIndex >= 0 ? withNoHash.substring(0, queryIndex) : withNoHash;
+        const query = queryIndex >= 0 ? withNoHash.substring(queryIndex) : '';
+        const normalizedPath = basePath.endsWith('/') ? basePath : (basePath + '/');
+        return normalizedPath + subId + query + hash;
+      },
       loading(spinning = true) {
         this.loadingStates.spinning = spinning;
       },
@@ -1482,9 +1493,9 @@
         if (clients != null) {
           clients.forEach(c => {
             if (c.subId && c.subId.length > 0) {
-              subLinks.push(this.subSettings.subURI + c.subId)
+              subLinks.push(this.buildSubURL(this.subSettings.subURI, c.subId))
               if (this.subSettings.subClashURI) {
-                subLinks.push(this.subSettings.subClashURI + c.subId)
+                subLinks.push(this.buildSubURL(this.subSettings.subClashURI, c.subId))
               }
             }
           })
@@ -1512,9 +1523,9 @@
           if (clients != null) {
             clients.forEach(c => {
               if (c.subId && c.subId.length > 0) {
-                subLinks.push(this.subSettings.subURI + c.subId)
+                subLinks.push(this.buildSubURL(this.subSettings.subURI, c.subId))
                 if (this.subSettings.subClashURI) {
-                  subLinks.push(this.subSettings.subClashURI + c.subId)
+                  subLinks.push(this.buildSubURL(this.subSettings.subClashURI, c.subId))
                 }
               }
             })
