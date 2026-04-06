@@ -39,7 +39,7 @@ func NewSubService(showInfo bool, remarkModel string) *SubService {
 }
 
 // GetSubs retrieves subscription links for a given subscription ID and host.
-// It also returns clashDisambigTags (same length as links; non-empty marks merged slave panel remark for Clash name disambiguation) and a preferred Clash group name from inbound remark.
+// Display names are disambiguated in the links (vmess ps / URL fragment) when merging slaves; clashDisambigTags is always nil (Clash reads names from links).
 func (s *SubService) GetSubs(subId string, host string) ([]string, []string, int64, xray.ClientTraffic, string, error) {
 	s.address = host
 	var result []string
@@ -61,7 +61,8 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, []string, int
 		if err != nil || s.datepicker == "" {
 			s.datepicker = "gregorian"
 		}
-		return merged, mergedTags, 0, traffic, groupName, nil
+		merged = applySubscriptionLinkDisambiguation(merged, mergedTags)
+		return merged, nil, 0, traffic, groupName, nil
 	}
 
 	s.datepicker, err = s.settingService.GetDatepicker()
@@ -127,7 +128,8 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, []string, int
 		userId = inbounds[0].UserId
 	}
 	result, clashTags := s.mergeRemoteSubscriptionLines(subId, result, userId)
-	return result, clashTags, lastOnline, traffic, groupName, nil
+	result = applySubscriptionLinkDisambiguation(result, clashTags)
+	return result, nil, lastOnline, traffic, groupName, nil
 }
 
 func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) {
